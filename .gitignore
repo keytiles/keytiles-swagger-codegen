@@ -1,9 +1,6 @@
-.settings/
-.project/
+.*/
 .project
 .classpath
-.gradle/
-.idea/ 
 .idea
 
 */target/
