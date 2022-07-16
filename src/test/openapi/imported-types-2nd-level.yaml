@@ -1,0 +1,17 @@
+openapi: 3.0.0
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+    FruitEnum:
+      type: string
+      enum: [apple, orange, mango]
+
+      

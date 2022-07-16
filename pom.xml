@@ -1,0 +1,310 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.keytiles</groupId>
+    <artifactId>keytiles-swagger-codegen</artifactId>
+    <packaging>jar</packaging>
+    <name>keytiles-swagger-codegen</name>
+    <version>1.0.0</version>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>https://opensource.org/licenses/Apache-2.0</url>
+        </license>
+    </licenses>
+
+	<properties>
+		<tests.jackson.version>2.13.0</tests.jackson.version>
+		<tests.maven.swagger-codegen.plugin>3.0.34</tests.maven.swagger-codegen.plugin>
+		
+		<!-- this is causing problems... why? anyways for now lets get over it -->
+		<!--  <tests.generation.path>${project.build.outputDirectory}/generated-test-sources/</tests.generation.path>-->
+		<tests.generation.path>${project.basedir}/target/generated-test-sources/swagger/</tests.generation.path>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <swagger-codegen-version>3.0.34</swagger-codegen-version>
+        <swagger-codegen-generators-version>1.0.34</swagger-codegen-generators-version>
+        <maven-plugin-version>1.0.0</maven-plugin-version>
+        <junit-version>4.13.1</junit-version>
+        <build-helper-maven-plugin>3.0.0</build-helper-maven-plugin>
+	</properties>
+
+   	<distributionManagement>
+		<repository>
+			<id>keytiles-public-releases</id>
+			<name>Keytiles Nexus Public Releases repo</name>
+			<url>https://nexus.keytiles.com/nexus/content/repositories/public-releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>keytiles-public-snapshots</id>
+			<name>Keytiles Nexus Public Snapshots repo</name>
+			<url>https://nexus.keytiles.com/nexus/content/repositories/public-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+
+    <build>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+				<targetPath>test-resources</targetPath>
+			</testResource>
+		</testResources>
+		    
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <executions>
+                    <execution>
+                        <id>enforce-maven</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>2.2.0</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.12</version>
+                <configuration>
+                    <systemProperties>
+                        <property>
+                            <name>loggerPath</name>
+                            <value>conf/log4j.properties</value>
+                        </property>
+                    </systemProperties>
+                    <argLine>-Xms512m -Xmx1500m</argLine>
+                    <parallel>methods</parallel>
+                    <forkMode>pertest</forkMode>
+                </configuration>
+            </plugin>
+
+            <!-- attach test jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>jar</goal>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin}</version>
+                <executions>
+                    <execution>
+                        <id>add_sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add_test_sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/test/java</source>
+                                <source>${tests.generation.path}src/main/java/</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+
+			            
+            <!-- we add this plugin for self-testing purposes only! 
+                 as you can see it only jumps in during 'generate-test-sources' phase -->
+			<plugin>
+				<groupId>io.swagger.codegen.v3</groupId>
+				<artifactId>swagger-codegen-maven-plugin</artifactId>
+				<version>${tests.maven.swagger-codegen.plugin}</version>
+				
+				<dependencies>
+					<dependency>
+						<groupId>${project.groupId}</groupId>
+						<artifactId>${project.artifactId}</artifactId>
+						<version>${project.version}</version>
+					</dependency>
+				</dependencies>
+				
+				<executions>
+					<execution>
+						<id>imported-types-2nd-level</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.imported_2ndlevel</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>imported-types-2nd-level</mavenExecutionId>
+								<nullableTagDefaultValue>true</nullableTagDefaultValue>
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+							</configOptions>
+						</configuration>
+					</execution>				
+				
+					<execution>
+						<id>imported-types</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/imported-types.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.imported</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>imported-types</mavenExecutionId>
+								<nullableTagDefaultValue>true</nullableTagDefaultValue>
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+								<!-- warning! order really matters here! see README! -->
+								<!--
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.imported_2ndlevel
+								</addSchemaModelsToImportMappings>
+								-->
+								<addSchemaModelsToImportMappingsFromMavenExecutions>imported-types-2nd-level</addSchemaModelsToImportMappingsFromMavenExecutions>
+							</configOptions>
+						</configuration>
+					</execution>				
+
+					<execution>
+						<id>test-types</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/test-types.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>test-types</mavenExecutionId>
+								<!-- warning! order really matters here! see README! -->
+								<!-- 
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.imported_2ndlevel,
+									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.imported
+								</addSchemaModelsToImportMappings>
+								-->
+								<addSchemaModelsToImportMappingsFromMavenExecutions>imported-types-2nd-level, imported-types</addSchemaModelsToImportMappingsFromMavenExecutions>
+								<!-- default: true -->
+								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
+								<!-- default: false -->
+								<nullableTagDefaultValue>true</nullableTagDefaultValue>
+								<addExplanationsToModel>false</addExplanationsToModel>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+							</configOptions>
+						</configuration>
+					</execution>				
+
+				</executions>
+			</plugin>
+            
+        </plugins>
+    </build>
+    <dependencies>
+        <dependency>
+            <groupId>io.swagger.codegen.v3</groupId>
+            <artifactId>swagger-codegen</artifactId>
+            <version>${swagger-codegen-version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.codegen.v3</groupId>
+            <artifactId>swagger-codegen-generators</artifactId>
+            <version>${swagger-codegen-generators-version}</version>
+            <scope>provided</scope>
+        </dependency>
+        
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.13.2</version>
+			<scope>test</scope>
+		</dependency>
+
+        <!-- we add this for self-testing purposes only! -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>${tests.jackson.version}</version>
+			<scope>test</scope>
+		</dependency>        
+    </dependencies>
+</project>

@@ -1,0 +1,198 @@
+openapi: 3.0.0
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+    # this guy extends the previous (so it also will have a constructor passing over params to base)
+    JsonSerializationTestSubclassClass:
+      allOf:
+      - $ref: 'imported-types.yaml#/components/schemas/JsonSerializationTestBaseClass'
+      type: object
+      required:
+      - requiredBooleanField
+      # in this class we turn on using simple datatypes
+      x-keytiles-use-primitive-datatypes-if-possible: true
+      properties:
+        # this field will be renamed to Java standard - but in json should remain the same
+        # since it has nothing special it will become a ppublic field simply
+        unconventional_name_Field:
+          type: integer
+          # let's enforce the renaming this way (should be default but still)
+          x-keytiles-keep-property-name: false
+        # this will be a public field as it has nothing special
+        longField:
+          type: integer
+          format: int64
+        # and since this guy is required it will become a private final
+        requiredBooleanField:
+          type: boolean
+        # this field can not be NULL but has a default value - so will become a private field with getter/setter
+        nonNullInteger:
+          type: integer
+          nullable: false
+          default: 10
+        # this field can not be NULL and does not have a good default value either - so will become a private field with getter/setter
+        # and also part of the constructor
+        nonNullNoDefaultDouble:
+          type: number
+          format: double
+          nullable: false
+        # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
+        outputIfNonDefaultString:
+          type: string
+          x-keytiles-serialize-only-if-non-default: true
+        
+    # This class is just testing simple property level mappings
+    # and does not declare any required or readOnly fields
+    # however it is testing behavior of default values!
+    SimpleFieldsClass:
+      type: object
+      x-keytiles-keep-property-names: true
+      properties:
+        # this field should be renamed - as local 'x-keytiles-keep-property-name' tells it
+        unconventional_name_Field1:
+          type: integer
+          x-keytiles-keep-property-name: false
+          description: unconventional_name_Field1 field description
+        # this field should not be renamed - as it inherits 'x-keytiles-keep-property-names' from Object
+        # field should get a @JsonInclude(Include.NON_DEFAULT) annotation
+        unconventional_name_Field2:
+          type: integer
+          description: unconventional_name_Field2 field description
+          x-keytiles-serialize-only-if-non-default: true
+        # to test it is mapped as long type
+        longField:
+          type: integer
+          format: int64
+          description: longField field description
+        longFieldWithDefault:
+          type: integer
+          format: int64
+          default: 10
+          description: longFieldWithDefault field description
+        # to test it is mapped as double type
+        doubleField:
+          type: number
+          format: double
+          description: doubleField field description
+        doubleFieldWithDefault:
+          type: number
+          format: double
+          default: 10.2
+          description: doubleFieldWithDefault field description
+        inlineEnumField:
+          type: string
+          description: inlineEnumField field description
+          enum: [ok, failed, warning]
+          example: "ok | warning | failed"
+        inlineEnumFieldWithDefault:
+          type: string
+          description: inlineEnumFieldWithDefault field description
+          enum: [ok, failed, warning]
+          example: "ok | warning | failed"
+          default: ok
+        fruitEnumField:
+          $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'
+        # NOTE: this way is not really supported by OpenApi 3.0 spec...
+        # defaults of enums are only working if you do it inline like 'inlineEnumFieldWithDefault'
+        # so probably field remains NULL ... thats normal
+        fruitEnumFieldWithDefault:
+          $ref: 'imported-types.yaml#/components/schemas/FruitEnumWithDefault'
+        primeEnumField:
+          $ref: 'imported-types.yaml#/components/schemas/PrimeEnum'
+        arrayField:
+          type: array
+          description: 'arrayField field description'
+          items:
+            type: string
+        # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
+        # see: SimpleFieldsClassInlineLangObjectField class
+        inlineLangObjectField:
+          type: object
+          description: inlineLangObjectField field description
+          properties:
+            id:
+              type: integer
+              minimum: 0
+            langcode:
+              type: string
+            label:
+              type: string
+
+    # This class is based on 'SimpleFieldsClass'
+    # except it is declaring all the fields 'nullable: false'
+    NonNullableFieldsClass:
+      type: object
+      properties:
+        # to test it is mapped as long type
+        longField:
+          type: integer
+          format: int64
+          nullable: false
+          description: longField field description
+        longFieldWithDefault:
+          type: integer
+          format: int64
+          nullable: false
+          default: 10
+          description: longFieldWithDefault field description
+        # to test it is mapped as double type
+        doubleField:
+          type: number
+          format: double
+          nullable: false
+          description: doubleField field description
+        doubleFieldWithDefault:
+          type: number
+          format: double
+          nullable: false
+          default: 10.2
+          description: doubleFieldWithDefault field description
+        inlineEnumField:
+          type: string
+          description: inlineEnumField field description
+          nullable: false
+          enum: [ok, failed, warning]
+          example: "ok | warning | failed"
+        inlineEnumFieldWithDefault:
+          type: string
+          description: inlineEnumFieldWithDefault field description
+          nullable: false
+          enum: [ok, failed, warning]
+          example: "ok | warning | failed"
+          default: ok
+        primeEnumField:
+          $ref: 'imported-types.yaml#/components/schemas/NonNullablePrimeEnum'
+        arrayField:
+          type: array
+          description: 'arrayField field description'
+          nullable: false
+          items:
+            type: string
+        # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
+        # see: SimpleFieldsClassInlineLangObjectField class
+        inlineLangObjectField:
+          type: object
+          description: inlineLangObjectField field description
+          nullable: false
+          properties:
+            id:
+              type: integer
+              minimum: 0
+            langcode:
+              type: string
+            label:
+              type: string
+          
+
+
+
+          
+      

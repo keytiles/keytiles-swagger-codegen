@@ -1,0 +1,70 @@
+openapi: 3.0.0
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+    # SEE: see field comment using this class!!!
+    FruitEnumWithDefault:
+      type: string
+      enum: [apple, orange, mango]
+      default: orange
+
+    PrimeEnum:
+      type: integer
+      enum: [1, 2, 3, 5, 7, 11, 13]
+
+    NonNullablePrimeEnum:
+      type: integer
+      nullable: false
+      enum: [1, 2, 3, 5, 7, 11, 13]
+      
+    # These classes will be tested from Java code to serialize/deserilaize to/from
+    # json string - so all important features are working fine (including @JsonProperty stuff)
+
+    JsonSerializationTestBaseClass:
+      type: object
+      required:
+      - required_unconventional_name_baseField
+      - requiredOutputIfNonDefaultBaseString
+      # in this class we turn off using simple datatypes
+      x-keytiles-use-primitive-datatypes-if-possible: false
+      properties:
+        # since this field is required it will become private final
+        # and will enforce a constructor 
+        required_unconventional_name_baseField:
+          type: integer
+          # let's enforce the renaming this way (should be default but still...)
+          x-keytiles-keep-property-name: false
+        # this field can not be NULL but has a default value - so will become a private field with getter/setter
+        nonNullBaseInteger:
+          type: integer
+          nullable: false
+          default: 10
+        # this field can not be NULL and does not have a good default value either - so will become a private field with getter/setter
+        # and also part of the constructor
+        nonNullNoDefaultBaseInteger:
+          type: integer
+          nullable: false
+        # and this field will be public - as it has nothing special
+        baseStringField:
+          type: string
+        # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
+        requiredOutputIfNonDefaultBaseString:
+          type: string
+          x-keytiles-serialize-only-if-non-default: true
+        # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
+        outputIfNonDefaultBaseInteger:
+          type: integer
+          x-keytiles-serialize-only-if-non-default: true
+        # this field is added to test 2 level deep imports
+        fruitEnumField:
+          $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'
+      
+      
