@@ -221,6 +221,7 @@
 								<interfaceOnly>true</interfaceOnly>
 								<dateLibrary>java8</dateLibrary>
 								<serializableModel>false</serializableModel>
+								<usePrimitiveTypesIfPossible>true</usePrimitiveTypesIfPossible>
 								<!-- warning! order really matters here! see README! -->
 								<!--
 								<addSchemaModelsToImportMappings>
