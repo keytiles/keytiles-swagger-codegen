@@ -1,0 +1,17 @@
+.settings/
+.project/
+.classpath/
+.gradle/
+.idea/ 
+
+*/target/
+target/
+build/
+bin/
+out/
+
+*.iml
+deps*.txt
+hs_err_pid*
+dependency-reduced-pom.xml
+classpath.txt
