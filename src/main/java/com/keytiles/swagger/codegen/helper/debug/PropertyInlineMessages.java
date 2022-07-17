@@ -6,62 +6,70 @@ import java.util.List;
 import java.util.Map;
 
 import com.keytiles.swagger.codegen.IKeytilesCodegen;
+import com.keytiles.swagger.codegen.model.ModelExtraInfo;
 
 import io.swagger.codegen.v3.CodegenProperty;
 
 /**
  * This class is used when {@link IKeytilesCodegen#OPT_ADD_EXPLANATIONS_TO_MODEL} option us turned
- * on
+ * on OR {@link ModelExtraInfo} add warnings.
  * <p>
- * The class is a simple placeholder for extra information belongs to the property. As you can see
- * follows a static method model so it is easy to use it from everywhere in the code
+ * The class is a simple placeholder for extra information belongs to the field or its getter/setter
+ * methods. As you can see follows a static method model so it is easy to use it from everywhere in
+ * the code
  * <p>
  * It simply hooks in to {@link CodegenProperty} instances - using
  * {@link CodegenProperty#getVendorExtensions()} part
  *
- * @author attil
+ * @author attilaw
  *
  */
-public class PropertyExplanations {
+public class PropertyInlineMessages {
 
 	public final static String X_PROPERTY_EXPLANATIONS = "x-keytiles-property-explanations";
+	public final static String X_PROPERTY_WARN_MESSAGES = "x-keytiles-property-warnings";
 
 	/**
-	 * This method returns the {@link PropertyExplanations} instance from the given property - if
+	 * This method returns the {@link PropertyInlineMessages} instance from the given property - if
 	 * already exists. If not exists then will create and attach it
 	 */
-	public static PropertyExplanations getOrCreateExplanations(CodegenProperty property) {
-		PropertyExplanations explanations = (PropertyExplanations) property.vendorExtensions
+	public static PropertyInlineMessages getOrCreateMessages(CodegenProperty property, ModelMessageType type) {
+		PropertyInlineMessages explanations = (PropertyInlineMessages) property.vendorExtensions
 				.get(X_PROPERTY_EXPLANATIONS);
 		if (explanations == null) {
-			explanations = new PropertyExplanations();
+			explanations = new PropertyInlineMessages();
 			property.vendorExtensions.put(X_PROPERTY_EXPLANATIONS, explanations);
 		}
 		return explanations;
 	}
 
 	/**
-	 * This method returns the {@link PropertyExplanations} instance from the given property - if
+	 * This method returns the {@link PropertyInlineMessages} instance from the given property - if
 	 * exists. Otherwise it returns NULL
 	 */
-	public static PropertyExplanations getExplanations(CodegenProperty property) {
-		return (PropertyExplanations) property.vendorExtensions.get(X_PROPERTY_EXPLANATIONS);
+	public static PropertyInlineMessages getMessages(CodegenProperty property, ModelMessageType type) {
+		return (PropertyInlineMessages) property.vendorExtensions.get(X_PROPERTY_EXPLANATIONS);
 	}
 
 	/**
 	 * You can append a new explanation message to the messages belong to the property field itself.
 	 * <p>
-	 * note: this is just done if the property has an already registered {@link PropertyExplanations}
+	 * note: this is just done if the property has an already registered {@link PropertyInlineMessages}
 	 * instance in it otherwise this method does nothing
 	 *
 	 * @param property
 	 *            which property?
+	 * @param type
+	 *            what type of message is this?
 	 * @param message
 	 *            your property field explanation message
 	 */
-	public static void appendToProperty(CodegenProperty property, String message) {
-		if (getExplanations(property) != null) {
-			getExplanations(property).appendToProperty(message);
+	public static void appendToProperty(CodegenProperty property, ModelMessageType type, String message) {
+		PropertyInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(property, type)
+				: getMessages(property, type);
+
+		if (messages != null) {
+			messages.appendToProperty(message);
 		}
 	}
 
@@ -69,17 +77,22 @@ public class PropertyExplanations {
 	 * You can append a new explanation message to the messages belong to the property field getter
 	 * method.
 	 * <p>
-	 * note: this is just done if the property has an already registered {@link PropertyExplanations}
+	 * note: this is just done if the property has an already registered {@link PropertyInlineMessages}
 	 * instance in it otherwise this method does nothing
 	 *
 	 * @param property
 	 *            which property?
+	 * @param type
+	 *            what type of message is this?
 	 * @param message
 	 *            your property getter method explanation message
 	 */
-	public static void appendToGetter(CodegenProperty property, String message) {
-		if (getExplanations(property) != null) {
-			getExplanations(property).appendToGetter(message);
+	public static void appendToGetter(CodegenProperty property, ModelMessageType type, String message) {
+		PropertyInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(property, type)
+				: getMessages(property, type);
+
+		if (messages != null) {
+			messages.appendToGetter(message);
 		}
 	}
 
@@ -87,17 +100,22 @@ public class PropertyExplanations {
 	 * You can append a new explanation message to the messages belong to the property field setter
 	 * method.
 	 * <p>
-	 * note: this is just done if the property has an already registered {@link PropertyExplanations}
+	 * note: this is just done if the property has an already registered {@link PropertyInlineMessages}
 	 * instance in it otherwise this method does nothing
 	 *
 	 * @param property
 	 *            which property?
+	 * @param type
+	 *            what type of message is this?
 	 * @param message
 	 *            your property setter method explanation message
 	 */
-	public static void appendToSetter(CodegenProperty property, String message) {
-		if (getExplanations(property) != null) {
-			getExplanations(property).appendToSetter(message);
+	public static void appendToSetter(CodegenProperty property, ModelMessageType type, String message) {
+		PropertyInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(property, type)
+				: getMessages(property, type);
+
+		if (messages != null) {
+			messages.appendToSetter(message);
 		}
 	}
 
@@ -105,7 +123,7 @@ public class PropertyExplanations {
 	private final List<Map<String, String>> forGetter = new LinkedList<>();
 	private final List<Map<String, String>> forSetter = new LinkedList<>();
 
-	public PropertyExplanations() {
+	public PropertyInlineMessages() {
 	}
 
 	public List<Map<String, String>> getForProperty() {

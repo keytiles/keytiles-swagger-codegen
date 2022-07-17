@@ -19,7 +19,7 @@ import io.swagger.codegen.v3.DefaultGenerator;
  * from {@link System#getProperties()} and this gives us some chance to customize this/that even for
  * the generator itself :-)
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class GeneratorInjectionHelper {

@@ -18,8 +18,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.keytiles.swagger.codegen.helper.config.ConfigOptionHelper;
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
-import com.keytiles.swagger.codegen.helper.debug.ModelExplanations;
-import com.keytiles.swagger.codegen.helper.debug.PropertyExplanations;
+import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
+import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
+import com.keytiles.swagger.codegen.helper.debug.PropertyInlineMessages;
 import com.keytiles.swagger.codegen.helper.maven.MavenExecutionInfo;
 import com.keytiles.swagger.codegen.model.ModelExtraInfo;
 import com.keytiles.swagger.codegen.model.ModelStyle;
@@ -38,7 +39,7 @@ import io.swagger.v3.oas.models.media.Schema;
  * <p>
  * This is extending and customizing the default {@link JavaClientCodegen} generator
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesCodegen {
@@ -290,8 +291,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		// let's hook in the explanations if feature is requested
 		if (addExplanationsToModel) {
 			// we will simply create instances on every model and property
-			ModelExplanations.getOrCreateExplanations(model);
-			PropertyExplanations.getOrCreateExplanations(property);
+			ModelInlineMessages.getOrCreateMessages(model, ModelMessageType.EXPLANATION);
+			PropertyInlineMessages.getOrCreateMessages(property, ModelMessageType.EXPLANATION);
 		}
 
 		if ("ContainerQueryRangeResponseClass".equals(model.name)) {
@@ -318,7 +319,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 				LOGGER.info("model {}, field '{}': due to {} setting necessary annotations will be added", model.name,
 						property.baseName, X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG);
-				PropertyExplanations.appendToProperty(property, "'" + X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION, "'"
+						+ X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG
 						+ ": true' is added to this property - so necessary annotations added here OR to the getter");
 
 			} else {
@@ -356,16 +358,16 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				LOGGER.info(
 						"model {}, field '{}': due to 'keepPropertyName' settings original name is kept and getter '{}' / setter '{}' will be used",
 						model.name, property.baseName, property.getter, property.setter);
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name is kept");
-				PropertyExplanations.appendToGetter(property,
+				PropertyInlineMessages.appendToGetter(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name of field is kept and for getter we go with 'get_<fieldName>' pattern");
-				PropertyExplanations.appendToSetter(property,
+				PropertyInlineMessages.appendToSetter(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name of field is kept and for setter we go with 'set_<fieldName>' pattern");
 			} else {
 				LOGGER.info("model {}, field '{}': name is changed to '{}' and getter '{}' / setter '{}' will be used",
 						model.name, property.baseName, property.name, property.getter, property.setter);
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"name is changed, in schema the original name is: '" + property.baseName + "'");
 			}
 		}
@@ -442,7 +444,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		if (usePrimitiveType) {
 			if (canUsePrimitiveType) {
 				primitiveTypeUsed = true;
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"primitive type is used because it is enforced on property level by '" + X_USE_PRIMITIVE_TYPE
 								+ ": true' flag");
 			} else {
@@ -458,16 +460,17 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				primitiveTypeUsed = true;
 
 				if (getBooleanValue(model, X_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
-					PropertyExplanations.appendToProperty(property, "primitive type is used because a) it can b) '"
-							+ X_USE_PRIMITIVE_TYPES_IF_POSSIBLE + ": true' is set on parent object");
+					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+							"primitive type is used because a) it can b) '" + X_USE_PRIMITIVE_TYPES_IF_POSSIBLE
+									+ ": true' is set on parent object");
 				} else {
-					PropertyExplanations.appendToProperty(property,
+					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 							"primitive type is used because a) it can b) option '" + OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE
 									+ "=true' is used in generator setup");
 				}
 
 			} else {
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"however we should use primitive type but we can not for this field because: "
 								+ canNotUsePrimitiveTypeReason);
 
@@ -554,7 +557,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 				modelMap.put(TPLVAR_CTOR_NEEDS_CONSTRUCTOR, extraInfo.needsConstructor());
 				modelMap.put(TPLVAR_CTOR_SUPER_ARGS, extraInfo.getCtorSuperArguments());
-				modelMap.put(TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS, extraInfo.getCtorNonNullablePrivateArguments());
+				modelMap.put(TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS, extraInfo.getCtorOwnFieldArguments());
 				modelMap.put(TPLVAR_CTOR_VALIDATE_NONNULL_VALUE_ARGS, extraInfo.getCtorValidateNonNullValueArguments());
 
 				String ctorArgAnnonation = null;

@@ -18,7 +18,7 @@ import io.swagger.codegen.v3.CodegenModel;
  * {@link IKeytilesCodegen#OPT_ADD_SCHEMA_MODELS_TO_IMPORT_MAPPING_FROM_MAVENEXECUTIONS} option
  * possible
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class MavenExecutionInfo {

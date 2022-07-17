@@ -13,7 +13,7 @@ import com.google.common.base.Splitter;
  *
  * @see #fromFlatStringDefinition(String, String)
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class SchemaParamCollection {

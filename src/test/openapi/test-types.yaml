@@ -112,6 +112,12 @@ components:
           description: 'arrayField field description'
           items:
             type: string
+        arrayFieldWithDefault:
+          type: array
+          description: 'arrayField field description'
+          default: ['a','b']
+          items:
+            type: string
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
         # see: SimpleFieldsClassInlineLangObjectField class
         inlineLangObjectField:
@@ -174,6 +180,13 @@ components:
           type: array
           description: 'arrayField field description'
           nullable: false
+          items:
+            type: string
+        arrayFieldWithDefault:
+          type: array
+          description: 'arrayField field description'
+          nullable: false
+          default: ['a','b']
           items:
             type: string
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
