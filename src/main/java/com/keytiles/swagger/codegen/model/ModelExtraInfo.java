@@ -169,7 +169,8 @@ public class ModelExtraInfo {
 	 *
 	 */
 	private boolean hasPropertyDefaultValue(CodegenModel model, CodegenProperty property) {
-		return property.defaultValue != null && !"null".equals(property.defaultValue);
+		// return property.defaultValue != null && !"null".equals(property.defaultValue);
+		return property.jsonSchema.contains("\"default\"");
 	}
 
 	/**

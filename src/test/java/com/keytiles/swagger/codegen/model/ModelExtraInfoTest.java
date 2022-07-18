@@ -1,8 +1,13 @@
 package com.keytiles.swagger.codegen.model;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.keytiles.swagger.codegen.IKeytilesCodegen;
 
 import io.swagger.codegen.v3.CodegenConstants;
@@ -11,8 +16,8 @@ import io.swagger.codegen.v3.CodegenProperty;
 
 public class ModelExtraInfoTest {
 
-	private CodegenModel getModelWithProperty(boolean nullable, boolean hasDefault, boolean mandatory,
-			boolean readonly) {
+	private CodegenModel getModelWithProperty(boolean nullable, boolean hasDefault, boolean mandatory, boolean readonly)
+			throws JsonProcessingException {
 		CodegenModel model = new CodegenModel();
 		model.name = "theModel";
 		CodegenProperty property = new CodegenProperty();
@@ -20,11 +25,22 @@ public class ModelExtraInfoTest {
 		property.name = "name";
 		model.vars.add(property);
 
+		Map<String, Object> schema = new HashMap<>();
+		schema.put("type", "string");
+
 		property.nullable = nullable;
 		property.vendorExtensions.put(CodegenConstants.IS_NULLABLE_EXT_NAME, nullable);
+		schema.put("nullable", nullable);
 
-		property.defaultValue = hasDefault ? "defaultValue" : "null";
+		if (hasDefault) {
+			property.defaultValue = "defaultValue";
+			schema.put("default", property.defaultValue);
+		} else {
+			property.defaultValue = "null";
+		}
+
 		if (readonly) {
+			schema.put("readOnly", true);
 			property.vendorExtensions.put(CodegenConstants.IS_READ_ONLY_EXT_NAME, true);
 		}
 
@@ -32,14 +48,19 @@ public class ModelExtraInfoTest {
 			model.mandatory.add(property.baseName);
 		}
 
+		ObjectMapper mapper = new ObjectMapper();
+		property.jsonSchema = mapper.writeValueAsString(schema);
+
 		return model;
 	}
 
 	/**
 	 * Check the attached excel sheet for all cases!
+	 *
+	 * @throws JsonProcessingException
 	 */
 	@Test
-	public void RuleSetTest() {
+	public void RuleSetTest() throws JsonProcessingException {
 
 		CodegenModel model = null;
 		ModelExtraInfo extraInfo = null;
