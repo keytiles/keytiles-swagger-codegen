@@ -1,0 +1,61 @@
+
+#
+# This schema is here to test explicitly CodegenBugfixHelper.fixReferredModelAttributesInheritance() method
+#
+
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+     
+    ReferredNullableEnumWithDefault:
+      type: string
+      enum: [apple, orange, mango]
+      default: orange
+      nullable: true
+
+    ReferredNullableObject:
+      nullable: true
+      type: object
+      properties:
+        prop1:
+          type: string
+          nullable: true
+        prop2:
+          type: integer
+          default: 5
+          
+    ReferredObject:
+      type: object
+      properties:
+        prop1:
+          type: string
+          nullable: true
+          default: "buuu"
+        prop2:
+          type: integer
+          default: 5          
+
+    ReferringClass:
+      type: object
+      properties:
+        referredNullableEnumField:
+          $ref: '#/components/schemas/ReferredNullableEnumWithDefault'
+        referredNullableObjectField:
+          $ref: '#/components/schemas/ReferredNullableObject'
+        # see: https://github.com/acacode/swagger-typescript-api/issues/39
+        inPlaceNullableObjectField:
+          anyOf:
+          - $ref: '#/components/schemas/ReferredObject'
+          - type: 'null'
+
+
+      

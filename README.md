@@ -26,6 +26,8 @@ The following are happening globally:
 * <a name="global_differences_ignoreimportmapping"></a>`ignoreImportMapping` option is defaulted to `false` - at least in the beginning... (see my comment: https://github.com/swagger-api/swagger-codegen/issues/10419#issuecomment-1184578892) But it is enough to get the <importMappings> option working and collect models. Of course this would not block generate models we dont want/need so option `excludeImportMappingsFromGeneration` is also introduced.
 * several extra OpenApi `x-` tags are available to drive model generation on a "hint" basis - see section [OpenApi 'x-' tags](#opeanapi_x_tags) for more details!
 * added support to use primitive types in models instead of always using wrapper classes - see [option usePrimitiveTypesIfPossible](#option_useprimitivetypesifpossible)
+* handling of referred in (using `$ref`) objects/enums is enhanced - now the attributes of the referred object (if has any) like `nullable` or `default` is considered and not just simply ignored - in line with [OpenApi v3 spec, "$ref and Sibling Elements" section](https://swagger.io/docs/specification/using-ref)
+* schema validation is enhanced so model generation will break in cases which does not make any sense, e.g. if a) someone writes a schema in which he tries to extend an Enum (using `allOf`) or b) one makes an object property `mandatory=true` and also assignd a `default` value (as this is contradicting information due to OpenApi spec)
 
 
 ### <a name="option_modelstyle"></a>option 'modelStyle'
@@ -84,19 +86,6 @@ In this case you can use this option - which is a boolean option
 
 **note:** You also have the possibility to control this behavior on Object or even on Property level in the schema using the
 `x-keytiles-keep-property-names` / `x-keytiles-keep-property-name` flags!
-
-### <a name="option_nullableTagDefaultValue"></a>option 'nullableTagDefaultValue'
-
-This is a boolean option. Default: false (why? read!)
-
-OpenApi spec (it looks) is assuming every field `nullable=false` if the `nullable` attribute is not given.
-
-This would enforce the `modelStyle=simple` to literally make every field private where you do not write explicitly
-`nullable=true`. Which is not necessarily what you want in that rendering style...
-
-So this option was introduced to redefine the default assumption if this attribute is not specified.
-
-Of course the default of this is 'FALSE' to conform with standard and compatibility. But you can override this.
 
 ### option 'addExplanationsToModel'
 
@@ -306,7 +295,6 @@ and then to the plugins section:
 				<configOptions>
 					<!-- here we use the 'simpleConsistent' generation style -->
 					<modelStyle>simpleConsistent</modelStyle>
-					<nullableTagDefaultValue>true</nullableTagDefaultValue>
 					<!-- warning! if you add more then order really matters here! see option description! -->
 					<addSchemaModelsToImportMappings>
 						${project.basedir}/src/main/openapi/common-types-v2.yaml::modelPackage=com.keytiles.api.model.common.v2

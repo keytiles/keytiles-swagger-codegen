@@ -13,5 +13,6 @@ components:
     FruitEnum:
       type: string
       enum: [apple, orange, mango]
+      nullable: true
 
       

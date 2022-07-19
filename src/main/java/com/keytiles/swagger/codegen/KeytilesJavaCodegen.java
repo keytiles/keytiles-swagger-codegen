@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.keytiles.swagger.codegen.error.SchemaValidationException;
+import com.keytiles.swagger.codegen.helper.CodegenBugfixAndEnhanceHelper;
 import com.keytiles.swagger.codegen.helper.config.ConfigOptionHelper;
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
 import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
@@ -118,10 +120,14 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		usePrimitiveTypesOption.setDefault("false");
 		cliOptions.add(usePrimitiveTypesOption);
 
+		/*
+		 * mmm not a good idea... let's remove
+		 *
 		CliOption nullableTagDefaultValueOption = CliOption.newBoolean(OPT_NULLABLE_TAG_DEFAULT_VALUE,
 				"Determines what would the generation assume for 'nullable' flag in Properties if the 'nullable' declaration is not given explicitly - default is: FALSE");
 		nullableTagDefaultValueOption.setDefault("false");
 		cliOptions.add(nullableTagDefaultValueOption);
+		 */
 
 		CliOption addExplanationsOption = CliOption.newBoolean(OPT_ADD_EXPLANATIONS_TO_MODEL,
 				"Very useful debugging feature! If you set it tue true then generator will add comments to the model fields, methods, constructor and explain why it looks as it does  - default is: FALSE");
@@ -171,10 +177,6 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		if (additionalProperties.containsKey(OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
 			usePrimitiveTypesIfPossible = Boolean
 					.valueOf(additionalProperties.get(OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE).toString());
-		}
-		if (additionalProperties.containsKey(OPT_NULLABLE_TAG_DEFAULT_VALUE)) {
-			nullableTagDefaultValue = Boolean
-					.valueOf(additionalProperties.get(OPT_NULLABLE_TAG_DEFAULT_VALUE).toString());
 		}
 		if (additionalProperties.containsKey(OPT_ADD_EXPLANATIONS_TO_MODEL)) {
 			addExplanationsToModel = Boolean
@@ -295,12 +297,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 			PropertyInlineMessages.getOrCreateMessages(property, ModelMessageType.EXPLANATION);
 		}
 
-		if ("ContainerQueryRangeResponseClass".equals(model.name)) {
-			LOGGER.info("buu");
-		}
-
-		// let's start with this! as follow up methods might depend on isNullable()...
-		support_nullableTagDefaultValue(model, property);
+		// if ("ContainerQueryRangeResponseClass".equals(model.name)) {
+		// LOGGER.info("buu");
+		// }
 
 		support_outputOnlyIfNonDefaultFlag(model, property);
 		support_keepPropertyNames(model, property);
@@ -487,16 +486,6 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 	}
 
-	protected void support_nullableTagDefaultValue(CodegenModel model, CodegenProperty property) {
-		// if ("g_eTy".equals(property.baseName)) {
-		// LOGGER.info("buuu");
-		// }
-		boolean nullableIsPresent = property.jsonSchema.contains("\"nullable\"");
-		if (!nullableIsPresent) {
-			property.setNullable(nullableTagDefaultValue);
-		}
-	}
-
 	@Override
 	public String getModelFullyQualifiedName(String modelName) {
 		String fqName = ignoreImportMapping ? null : importMapping.get(modelName);
@@ -522,6 +511,26 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	@Override
 	protected void postProcessAllCodegenModels(Map<String, CodegenModel> allModels) {
 		super.postProcessAllCodegenModels(allModels);
+
+		CodegenBugfixAndEnhanceHelper.fixReferredModelAttributesInheritance(allModels);
+	}
+
+	/**
+	 * During this work we noticed issues even with the orig {@link JavaClientCodegen}... This method
+	 * validates the model and breaks the build in case it is recognizing a situation the generation
+	 * would break or would be wrong. Then it will raise an exception.
+	 *
+	 * @param theModel
+	 *            the model candidate
+	 */
+	protected void canModelBeGenerated(CodegenModel theModel) {
+
+		if (theModel.parentModel != null && theModel.parentModel.getIsEnum()) {
+			// it is not possible to extend an enum
+			throw new SchemaValidationException("We can not generate this schema :-( We ran into a class '"
+					+ theModel.name + "' which is extending an enum '" + theModel.parent
+					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nIf you can somehow remove AnyOf, AllOf, OneOf markers using this enum then do it an you can continue!");
+		}
 	}
 
 	/**
@@ -549,7 +558,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
 				CodegenModel theModel = extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-				if ("JsonSerializationTestSubclassClass".equals(theModel.name)) {
+				canModelBeGenerated(theModel);
+
+				if ("JsonSerializationTestBaseClass".equals(theModel.name)) {
 					LOGGER.info("buu");
 				}
 

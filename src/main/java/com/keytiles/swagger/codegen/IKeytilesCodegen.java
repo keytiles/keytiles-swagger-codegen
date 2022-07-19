@@ -18,7 +18,6 @@ public interface IKeytilesCodegen extends CodegenConfig {
 	public final static String OPT_MODEL_STYLE = "modelStyle";
 	public final static String OPT_KEEP_PROPERTY_NAMES = "keepPropertyNames";
 	public final static String OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE = "usePrimitiveTypesIfPossible";
-	public final static String OPT_NULLABLE_TAG_DEFAULT_VALUE = "nullableTagDefaultValue";
 	public final static String OPT_ADD_EXPLANATIONS_TO_MODEL = "addExplanationsToModel";
 	public final static String OPT_ADD_SCHEMA_MODELS_TO_IMPORT_MAPPING = "addSchemaModelsToImportMappings";
 	public final static String OPT_EXCLUDE_IMPORT_MAPPINGS_FROM_GENERATION = "excludeImportMappingsFromGeneration";

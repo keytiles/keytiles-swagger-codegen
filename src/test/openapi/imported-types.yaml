@@ -15,10 +15,13 @@ components:
       type: string
       enum: [apple, orange, mango]
       default: orange
+      #nullable: true
+      
 
     PrimeEnum:
       type: integer
       enum: [1, 2, 3, 5, 7, 11, 13]
+      #nullable: true
 
     NonNullablePrimeEnum:
       type: integer
@@ -40,6 +43,7 @@ components:
         # and will enforce a constructor 
         required_unconventional_name_baseField:
           type: integer
+          nullable: true
           # let's enforce the renaming this way (should be default but still...)
           x-keytiles-keep-property-name: false
         # this field can not be NULL but has a default value - so will become a private field with getter/setter
@@ -55,13 +59,16 @@ components:
         # and this field will be public - as it has nothing special
         baseStringField:
           type: string
+          nullable: true
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         requiredOutputIfNonDefaultBaseString:
           type: string
+          nullable: true
           x-keytiles-serialize-only-if-non-default: true
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         outputIfNonDefaultBaseInteger:
           type: integer
+          nullable: true
           x-keytiles-serialize-only-if-non-default: true
         # this field is added to test 2 level deep imports
         fruitEnumField:

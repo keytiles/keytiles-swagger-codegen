@@ -6,7 +6,7 @@
     <artifactId>keytiles-swagger-codegen</artifactId>
     <packaging>jar</packaging>
     <name>keytiles-swagger-codegen</name>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
 
     <licenses>
         <license>
@@ -50,6 +50,10 @@
 				<directory>src/test/resources</directory>
 				<targetPath>test-resources</targetPath>
 			</testResource>
+			<testResource>
+				<directory>src/test/openapi</directory>
+				<targetPath>test/openapi</targetPath>
+			</testResource>			
 		</testResources>
 		    
         <plugins>
@@ -167,6 +171,37 @@
 				</dependencies>
 				
 				<executions>
+				
+					<execution>
+						<id>ref-attribute-inheritance</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/ref-attribute-inheritance.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>ref-attribute-inheritance</mavenExecutionId>
+								<addExplanationsToModel>true</addExplanationsToModel>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+							</configOptions>
+						</configuration>
+					</execution>				
+				
 					<execution>
 						<id>imported-types-2nd-level</id>
 						<phase>generate-test-sources</phase>
@@ -176,7 +211,7 @@
 						<configuration>
 							<inputSpec>${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml</inputSpec>
 							<output>${tests.generation.path}</output>
-							<modelPackage>com.keytiles.api.model.test.imported_2ndlevel</modelPackage>
+							<modelPackage>com.keytiles.api.model.test.simpleconsistent.imported_2ndlevel</modelPackage>
 							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
 							<!-- <library>resttemplate</library> -->
 							<generateApis>false</generateApis>
@@ -188,10 +223,11 @@
 							<generateSupportingFiles>false</generateSupportingFiles>
 							<configOptions>
 								<mavenExecutionId>imported-types-2nd-level</mavenExecutionId>
-								<nullableTagDefaultValue>true</nullableTagDefaultValue>
+								<serializableModel>false</serializableModel>
+								<addExplanationsToModel>true</addExplanationsToModel>
+								
 								<interfaceOnly>true</interfaceOnly>
 								<dateLibrary>java8</dateLibrary>
-								<serializableModel>false</serializableModel>
 							</configOptions>
 						</configuration>
 					</execution>				
@@ -205,7 +241,7 @@
 						<configuration>
 							<inputSpec>${project.basedir}/src/test/openapi/imported-types.yaml</inputSpec>
 							<output>${tests.generation.path}</output>
-							<modelPackage>com.keytiles.api.model.test.imported</modelPackage>
+							<modelPackage>com.keytiles.api.model.test.simpleconsistent.imported</modelPackage>
 							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
 							<!-- <library>resttemplate</library> -->
 							<generateApis>false</generateApis>
@@ -217,9 +253,6 @@
 							<generateSupportingFiles>false</generateSupportingFiles>
 							<configOptions>
 								<mavenExecutionId>imported-types</mavenExecutionId>
-								<nullableTagDefaultValue>true</nullableTagDefaultValue>
-								<interfaceOnly>true</interfaceOnly>
-								<dateLibrary>java8</dateLibrary>
 								<serializableModel>false</serializableModel>
 								<usePrimitiveTypesIfPossible>true</usePrimitiveTypesIfPossible>
 								<!-- warning! order really matters here! see README! -->
@@ -229,6 +262,10 @@
 								</addSchemaModelsToImportMappings>
 								-->
 								<addSchemaModelsToImportMappingsFromMavenExecutions>imported-types-2nd-level</addSchemaModelsToImportMappingsFromMavenExecutions>
+								<addExplanationsToModel>true</addExplanationsToModel>
+
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
 							</configOptions>
 						</configuration>
 					</execution>				
@@ -242,7 +279,7 @@
 						<configuration>
 							<inputSpec>${project.basedir}/src/test/openapi/test-types.yaml</inputSpec>
 							<output>${tests.generation.path}</output>
-							<modelPackage>com.keytiles.api.model.test</modelPackage>
+							<modelPackage>com.keytiles.api.model.test.simpleconsistent</modelPackage>
 							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
 							<!-- <library>resttemplate</library> -->
 							<generateApis>false</generateApis>
@@ -257,22 +294,164 @@
 								<!-- warning! order really matters here! see README! -->
 								<!-- 
 								<addSchemaModelsToImportMappings>
-									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.imported_2ndlevel,
-									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.imported
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.simpleconsistent.imported_2ndlevel,
+									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.simpleconsistent.imported
 								</addSchemaModelsToImportMappings>
 								-->
 								<addSchemaModelsToImportMappingsFromMavenExecutions>imported-types-2nd-level, imported-types</addSchemaModelsToImportMappingsFromMavenExecutions>
 								<!-- default: true -->
 								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
 								<!-- default: false -->
-								<nullableTagDefaultValue>true</nullableTagDefaultValue>
-								<addExplanationsToModel>false</addExplanationsToModel>
+								<addExplanationsToModel>true</addExplanationsToModel>
 								
 								<interfaceOnly>true</interfaceOnly>
 								<dateLibrary>java8</dateLibrary>
 							</configOptions>
 						</configuration>
 					</execution>				
+
+
+					<!-- ================================================================================================== -->
+					<!-- this is the original Java codegen generation with <modelStyle>inherited</modelStyle> -->
+					<!-- ================================================================================================== -->
+
+					<execution>
+						<id>_ref-attribute-inheritance</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/ref-attribute-inheritance.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.inherited.ref_attribute_inheritance</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>_ref-attribute-inheritance</mavenExecutionId>
+								<modelStyle>inherited</modelStyle>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+							</configOptions>
+						</configuration>
+					</execution>				
+
+
+					<execution>
+						<id>_imported-types-2nd-level</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.inherited.imported_2ndlevel</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<modelStyle>inherited</modelStyle>
+								<mavenExecutionId>_imported-types-2nd-level</mavenExecutionId>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+							</configOptions>
+						</configuration>
+					</execution>				
+				
+					<execution>
+						<id>_imported-types</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/imported-types.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.inherited.imported</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<modelStyle>inherited</modelStyle>
+								<mavenExecutionId>_imported-types</mavenExecutionId>
+								<usePrimitiveTypesIfPossible>true</usePrimitiveTypesIfPossible>
+								<!-- warning! order really matters here! see README! -->
+								<!--
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.inherited.imported_2ndlevel
+								</addSchemaModelsToImportMappings>
+								-->
+								<addSchemaModelsToImportMappingsFromMavenExecutions>_imported-types-2nd-level</addSchemaModelsToImportMappingsFromMavenExecutions>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>false</serializableModel>
+							</configOptions>
+						</configuration>
+					</execution>				
+
+					<execution>
+						<id>_test-types</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/test-types.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.inherited</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>_test-types</mavenExecutionId>
+								<modelStyle>inherited</modelStyle>
+								<!-- warning! order really matters here! see README! -->
+								<!-- 
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.inherited.imported_2ndlevel,
+									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.inherited.imported
+								</addSchemaModelsToImportMappings>
+								-->
+								<addSchemaModelsToImportMappingsFromMavenExecutions>_imported-types-2nd-level, _imported-types</addSchemaModelsToImportMappingsFromMavenExecutions>
+								<!-- default: true -->
+								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+							</configOptions>
+						</configuration>
+					</execution>			
 
 				</executions>
 			</plugin>

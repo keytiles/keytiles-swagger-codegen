@@ -126,6 +126,12 @@ public class ModelExtraInfo {
 			} else {
 				publicFields.add(property);
 
+				LOGGER.info(
+						"model {}, field '{}': becomes public - as nullable (no need to null-check) and not readonly",
+						theModel.name, property.baseName);
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"becomes public - as nullable (no need to null-check) and not readonly");
+
 				if (isPropertyMandatory(theModel, property)) {
 					ctorOtherOwnFieldArguments.add(property);
 
