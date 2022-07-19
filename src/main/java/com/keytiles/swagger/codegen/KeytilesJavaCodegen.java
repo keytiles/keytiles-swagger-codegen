@@ -53,7 +53,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public final static String TPLVAR_PRIVATE_FIELDS = "privateFields";
 	public final static String TPLVAR_CTOR_NEEDS_CONSTRUCTOR = "needsConstructor";
 	public final static String TPLVAR_CTOR_SUPER_ARGS = "constructorSuperArgs";
-	public final static String TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS = "constructorNonNullablePrivateArgs";
+	public final static String TPLVAR_CTOR_OWN_FIELD_ARGS = "constructorOwnFieldArgs";
 	public final static String TPLVAR_CTOR_VALIDATE_NONNULL_VALUE_ARGS = "constructorValidateNonNullArgs";
 	public final static String TPLVAR_CTOR_COMBINED_ARGS = "constructorCombinedArgs";
 
@@ -560,15 +560,15 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 				canModelBeGenerated(theModel);
 
-				if ("JsonSerializationTestBaseClass".equals(theModel.name)) {
-					LOGGER.info("buu");
-				}
+				// if ("ReferringClass".equals(theModel.name)) {
+				// LOGGER.info("buu");
+				// }
 
 				ModelExtraInfo extraInfo = ModelExtraInfo.getExtraInfo(theModel, this);
 
 				modelMap.put(TPLVAR_CTOR_NEEDS_CONSTRUCTOR, extraInfo.needsConstructor());
 				modelMap.put(TPLVAR_CTOR_SUPER_ARGS, extraInfo.getCtorSuperArguments());
-				modelMap.put(TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS, extraInfo.getCtorOwnFieldArguments());
+				modelMap.put(TPLVAR_CTOR_OWN_FIELD_ARGS, extraInfo.getCtorOwnFieldArguments());
 				modelMap.put(TPLVAR_CTOR_VALIDATE_NONNULL_VALUE_ARGS, extraInfo.getCtorValidateNonNullValueArguments());
 
 				String ctorArgAnnonation = null;

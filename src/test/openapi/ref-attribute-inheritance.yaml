@@ -52,10 +52,12 @@ components:
         referredNullableObjectField:
           $ref: '#/components/schemas/ReferredNullableObject'
         # see: https://github.com/acacode/swagger-typescript-api/issues/39
+        # but problem is that this example is not good as OpenApi does not have explicit null type...
+        # but the below is nice trick! Drawback is that an intermediate (interface) class will be generated but at least works
         inPlaceNullableObjectField:
-          anyOf:
+          oneOf:
           - $ref: '#/components/schemas/ReferredObject'
-          - type: 'null'
+          nullable: true
 
 
       

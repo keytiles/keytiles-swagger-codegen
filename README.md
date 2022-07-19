@@ -334,15 +334,15 @@ There are no additional template variables in this style.
 ### modelStyle 'simpleConsistent'
 
 The following extra variables are available:
- * **needsConstructor**: boolean flag, true if the model class needs a non-zero argument constructor (instead of default constructor). See Rules/#4!
- * **privateFinalFields**: list of CodegenProperty objects (like in {#vars}) which are 'private final' fields of the model. See [Rules/#1](#simpleconsistent_rules)  
+ * **needsConstructor**: boolean flag, true if the model class needs a non-zero argument constructor (instead of default constructor).
+ * **privateFinalFields**: list of CodegenProperty objects (like in {#vars}) which are `private final` fields of the model.  
  note: if needsConstructor is true then you also need to take these arguments there and assign to the fields!
- * **privateFields**: list of CodegenProperty objects (like in {#vars}) which are 'private' fields of the model. See [Rules/#2](#simpleconsistent_rules)
- * **publicFields**: list of CodegenProperty objects (like in {#vars}) which are 'public' fields of the model. See [Rules/#3](#simpleconsistent_rules)
+ * **privateFields**: list of CodegenProperty objects (like in {#vars}) which are 'private' fields of the model.
+ * **publicFields**: list of CodegenProperty objects (like in {#vars}) which are 'public' fields of the model.
  * **constructorSuperArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which we take as arguments because we need to pass them to our Superclass constructor. If needsConstructor=false then or no such arguments needed then this list is empty.
- * **constructorNonNullablePrivateArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which we take as arguments because we have to ensure they get a non-null value assigned. See [Rules/#2/2](#simpleconsistent_rules)
- * **constructorValidateNonNullArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which the constructor must validate being non-null (this can include arguments from other arrays)
- * **constructorCombinedArgs**: if we need a constructor (see needsConstructor) then this is a simple string which contains concatenation of constructorSuperArgs + privateFinalFields + constructorNonNullablePrivateArgs properties and rendered as a comma separated list of arguments. Just as you would write the arguments in Java code. 
+ * **constructorOwnFieldArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which however not `private final` fields (must taken from constructor) but other reasons. One reason is that the field is `required` (mandatory). Or not mandatory but `nullable:false` and does not have a good default value we could automatically assign so we need to enforce a non-null instantiation value too.
+ * **constructorValidateNonNullArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which the constructor must validate being non-null
+ * **constructorCombinedArgs**: if we need a constructor (see needsConstructor) then this is a simple string which contains concatenation of constructorSuperArgs + privateFinalFields + constructorOwnFieldArgs properties and rendered as a comma separated list of arguments. Just as you would write the arguments in Java code. 
  
 
 # <a name="opeanapi_x_tags"></a>OpenApi 'x-' tags

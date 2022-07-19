@@ -165,9 +165,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
     {{#privateFinalFields}}
     this.{{name}} = {{name}};
     {{/privateFinalFields}}
-    {{#constructorNonNullablePrivateArgs}}
+    {{#constructorOwnFieldArgs}}
     this.{{name}} = {{name}};
-    {{/constructorNonNullablePrivateArgs}}
+    {{/constructorOwnFieldArgs}}
   }
 {{/needsConstructor}}
   
