@@ -54,31 +54,13 @@ The following table is showing/summarizing how the logic works under the hood co
 
 ![how the logic works?](docs/field-mapping-logic.png)
 
-
 (note: you can find this in an attached [Excel sheet](docs/cases-considerations.xlsx) too)
-
-
-Here are the rules this generation follows:
- 1. If an Object property is marked as `required` or `readOnly: true` then this will become a `private final` field of the model (and will be enforced get value through Constructor)  
-  Why 'private final'? Why 'final'? You might ask... Because this is a POJO model thus it does not have any internal logic which could change values after instantiation. Of course the code which builds the model might want to change such field multiple times in the process of generation BEFORE releasing the POJO out (for readers) but this is actually the area of Builder Pattern right?
- 2. If a property is `nullable: false` then it will become a `private` field with a setter() method protecting against setting NULL value to it later, furthermore:
-    1. if it has a `default: something` value then value in schema then will be assigned on the field level as a start.  
-     **note:** same happens if field however does not have a default value on schema level but there is a logical default alternative, e.g. if the field is a List<> we can assign an empty ArrayList, similarly we can do with Sets or Maps, etc.
-    2. but if we can not figure out anyhow (see above) a meaningful non-NULL default value then field will be part of the Constructor so a non-NULL value will be enforced
- 3. Other Object properties will become simply a `public` field - so no setter/getter is needed there
- 4. Constructor. If a model has  
-  a) any `private final` field (see #1) **OR**  
-  b) any `private` field (which is `nullable: false`) without a meaningful default value (see #2) **OR**  
-  c) has a Superclass which already has a non-zero argument constructor  
-  then the model will get a non-zero argument constructor. (The zero-argument constructor goes away in this case)  
-  To put it other words: to instantiate the model class you need to conform with the property level contract.
- 5. The builder style property setter methods are removed in this model generation (it would have been too complicated).
 
 The name of the generation "simple" and "consistent" comes from the above rules which:
 * guarantee strong(er) **consistency** between schema contract and model usage from code
 * by introducing making fields public whenever possible AND removing every non-absolutely-necessary @annotations from the model are **simplifying** the model / dependencies you need to pull in heavily
 
-**Please note!** As a consequence of the above rules if you declare all properties in an Object in the schema readOnly: true then
+**Please note!** As a consequence of the above rules if you declare all properties in an Object in the schema "readOnly: true" then
 basically an immutable model will be generated... (note: again a nice future feature could be to support builder generation too for these or similar cases)
 
 ### <a name="option_keeppropertynames"></a>option 'keepPropertyNames'
