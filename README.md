@@ -42,15 +42,22 @@ In this case not much happens compared to the underlying Java rendering just wha
 
 #### value 'simpleConsistent' (default)
 
-With this model generation style we get a more straightforward model. And markers like `required`, `readOnly: true` fields
-become more important. Also the `nullable` and `default` declarations.
+With this model generation style we get a more straightforward model. And property modifiers like `required`, `readOnly: true`, `nullable` and `default` declarations become important.
 
-The main goal is: to get a simplified (no unnecessary setters/getters) but enforced consistency (instantiation of a model class via non-zero argument constructor) in the generated models.
+The main goal is: to get a simplified (no unnecessary setters/getters) but enforced consistency (instantiation of a model class via non-zero argument constructor if needed) in the generated models.
 
 This approach brings closer the written code (which is working with the models) with the defined OpenApi contracts and while we are writing the code - thanks to the enforced consistency - we might get into situations more likely we realize the model is not good enough / not behaves as expected and contract should be modified / fine tuned maybe?
 Also when we change the contract and regenerate the models it might lead to compile errors quickly - showing clearly which parts the current code (working with the models) needs adjustments.
 
 <a name="simpleconsistent_rules"></a>
+The following table is showing/summarizing how the logic works under the hood considering the `required`, `readOnly: true`, `nullable` and `default` modifiers.
+
+![how the logic works?](docs/field-mapping-logic.png)
+
+
+(note: you can find this in an attached [Excel sheet](docs/cases-considerations.xlsx) too)
+
+
 Here are the rules this generation follows:
  1. If an Object property is marked as `required` or `readOnly: true` then this will become a `private final` field of the model (and will be enforced get value through Constructor)  
   Why 'private final'? Why 'final'? You might ask... Because this is a POJO model thus it does not have any internal logic which could change values after instantiation. Of course the code which builds the model might want to change such field multiple times in the process of generation BEFORE releasing the POJO out (for readers) but this is actually the area of Builder Pattern right?
