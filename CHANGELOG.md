@@ -23,6 +23,7 @@ This means that:
  * Significantly enhanced `// @Generator` messages - they provide much much better info if `addExplanationsToModel` config option is turned on
  * Added mechanism to detect Java codegen bug https://github.com/swagger-api/swagger-codegen/issues/11821 and break the build if detected
  * Support of inheriting attributes of referred in objects/enums using `$ref`
+ * Added support for array properties, `default: [...]` values is recognized and applied (but only for primitive types, objects not)
 
 ## Bugfixes
 none
