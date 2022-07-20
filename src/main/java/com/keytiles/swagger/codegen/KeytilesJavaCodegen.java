@@ -14,6 +14,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.keytiles.swagger.codegen.error.SchemaValidationException;
@@ -301,10 +303,77 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		// LOGGER.info("buu");
 		// }
 
+		if ("arrayFieldWithDefault".equals(property.baseName)
+				|| "objectArrayFieldWithDefault".equals(property.baseName)) {
+			LOGGER.info("buu");
+		}
+
 		support_outputOnlyIfNonDefaultFlag(model, property);
 		support_keepPropertyNames(model, property);
 
 		support_usePrimitiveTypesIfPossible(model, property);
+
+		support_arrayDefaultValue(model, property);
+	}
+
+	/**
+	 * If the property is an Array and it has a default value in the schema then we will use that - so
+	 * we get an array with appropriate content
+	 *
+	 */
+	protected void support_arrayDefaultValue(CodegenModel model, CodegenProperty property) {
+		if (!property.getIsArrayModel() && !property.getIsListContainer()) {
+			// we have nothing to do - not an array
+			return;
+		}
+		// does it have a default set in schema?
+		if (!property.jsonSchema.contains("default")) {
+			return;
+		}
+
+		// OK so this is an array and has default value defined in schema - let's get that!
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		HashMap<String, Object> parseResult = null;
+		Exception parsingException = null;
+		try {
+			parseResult = objectMapper.readValue(property.jsonSchema, HashMap.class);
+		} catch (Exception e) {
+			parsingException = e;
+		}
+		Preconditions.checkState(parseResult != null,
+				"Oops it looks we failed to json parse $ref attribute at property %s.%s! jsonSchema\n%s\nlead to error: %s",
+				model.name, property.baseName, property.jsonSchema, parsingException);
+
+		List<Object> defaultValues = (List<Object>) parseResult.get("default");
+
+		// for now we just support primitive types
+		if (defaultValues.size() > 0) {
+			Class<?> itemClass = defaultValues.get(0).getClass();
+			if (!String.class.equals(itemClass) && !Boolean.class.equals(itemClass)
+					&& !Number.class.isAssignableFrom(itemClass)) {
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.WARNING,
+						"default value was set but for now we just support primitive types in default array - we skipped this one");
+				return;
+			}
+
+			PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+					"default array value was set in schema - applied here");
+		}
+
+		// OK let's create the string representation of the item list
+		String jsonStr = null;
+		try {
+			jsonStr = objectMapper.writeValueAsString(defaultValues);
+		} catch (JsonProcessingException e) {
+			// oops
+			throw new IllegalStateException("We failed to produce array default value of " + model.name + "."
+					+ property.baseName + " due to json serialization error: " + e);
+		}
+		// let's string hack a bit! ;-)
+		jsonStr = jsonStr.replace("[", "").replace("]", "");
+		property.defaultValue = property.defaultValue.replace("<>()", "<>(Arrays.asList(" + jsonStr + "))");
 	}
 
 	protected void support_outputOnlyIfNonDefaultFlag(CodegenModel model, CodegenProperty property) {

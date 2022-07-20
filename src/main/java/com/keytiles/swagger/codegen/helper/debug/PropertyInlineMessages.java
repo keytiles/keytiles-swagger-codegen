@@ -27,7 +27,6 @@ import io.swagger.codegen.v3.CodegenProperty;
 public class PropertyInlineMessages {
 
 	public final static String X_PROPERTY_EXPLANATIONS = "x-keytiles-property-explanations";
-	public final static String X_PROPERTY_WARN_MESSAGES = "x-keytiles-property-warnings";
 
 	/**
 	 * This method returns the {@link PropertyInlineMessages} instance from the given property - if
@@ -51,6 +50,13 @@ public class PropertyInlineMessages {
 		return (PropertyInlineMessages) property.vendorExtensions.get(X_PROPERTY_EXPLANATIONS);
 	}
 
+	private static String prefixMessage(ModelMessageType type, String message) {
+		if (type == ModelMessageType.WARNING) {
+			return "WARNING - " + message;
+		}
+		return message;
+	}
+
 	/**
 	 * You can append a new explanation message to the messages belong to the property field itself.
 	 * <p>
@@ -69,7 +75,7 @@ public class PropertyInlineMessages {
 				: getMessages(property, type);
 
 		if (messages != null) {
-			messages.appendToProperty(message);
+			messages.appendToProperty(prefixMessage(type, message));
 		}
 	}
 
@@ -92,7 +98,7 @@ public class PropertyInlineMessages {
 				: getMessages(property, type);
 
 		if (messages != null) {
-			messages.appendToGetter(message);
+			messages.appendToGetter(prefixMessage(type, message));
 		}
 	}
 
@@ -115,7 +121,7 @@ public class PropertyInlineMessages {
 				: getMessages(property, type);
 
 		if (messages != null) {
-			messages.appendToSetter(message);
+			messages.appendToSetter(prefixMessage(type, message));
 		}
 	}
 

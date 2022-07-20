@@ -26,7 +26,6 @@ import io.swagger.codegen.v3.CodegenModel;
 public class ModelInlineMessages {
 
 	public final static String X_MODEL_EXPLANATIONS = "x-keytiles-model-explanations";
-	public final static String X_MODEL_WARN_MESSAGES = "x-keytiles-model-warnings";
 
 	/**
 	 * This method returns the {@link ModelInlineMessages} instance from the given model - if already
@@ -49,6 +48,13 @@ public class ModelInlineMessages {
 		return (ModelInlineMessages) model.vendorExtensions.get(X_MODEL_EXPLANATIONS);
 	}
 
+	private static String prefixMessage(ModelMessageType type, String message) {
+		if (type == ModelMessageType.WARNING) {
+			return "WARNING - " + message;
+		}
+		return message;
+	}
+
 	/**
 	 * You can append a new explanation message to the messages belong to the Class constructor.
 	 * <p>
@@ -65,8 +71,9 @@ public class ModelInlineMessages {
 	public static void appendToConstructor(CodegenModel model, ModelMessageType type, String message) {
 		ModelInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(model, type)
 				: getMessages(model, type);
+
 		if (messages != null) {
-			messages.appendToConstructor(message);
+			messages.appendToConstructor(prefixMessage(type, message));
 		}
 	}
 

@@ -9,6 +9,17 @@ paths: {}
 components:
 
   schemas:
+  
+    ReferredObject:
+      type: object
+      properties:
+        prop1:
+          type: string
+          nullable: true
+          default: "buuu"
+        prop2:
+          type: integer
+          default: 5  
 
     # this guy extends the previous (so it also will have a constructor passing over params to base)
     JsonSerializationTestSubclassClass:
@@ -205,6 +216,17 @@ components:
           default: ['a','b']
           items:
             type: string
+        objectArrayFieldWithDefault:
+          type: array
+          description: 'object arrayField field description'
+          nullable: false
+          default:
+          - prop1: "obj1"
+            prop2: 5
+          - prop1: "obj2"
+            prop2: 15
+          items:
+            $ref: '#/components/schemas/ReferredObject'
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
         # see: SimpleFieldsClassInlineLangObjectField class
         inlineLangObjectField:
