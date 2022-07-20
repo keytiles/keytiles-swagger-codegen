@@ -2,12 +2,19 @@ package com.keytiles.swagger.codegen;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass;
+import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.InlineEnumFieldEnum;
+import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
+import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableEnumWithDefault;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableObject;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredObject;
@@ -24,6 +31,22 @@ public class CheckGeneratedSourcesTest {
 	}
 
 	public CheckGeneratedSourcesTest() {
+
+		// TODO this is crap, add much more in a logical structure!
+
+		Long longField = 5l;
+		Double doubleField = 5d;
+		InlineEnumFieldEnum inlineEnumField = InlineEnumFieldEnum.OK;
+		NonNullablePrimeEnum primeEnumField = NonNullablePrimeEnum.NUMBER_11;
+		List<String> arrayField = new ArrayList<>();
+		NonNullableFieldsClassInlineLangObjectField inlineLangObjectField = new NonNullableFieldsClassInlineLangObjectField(
+				5, "langcode", "label");
+
+		NonNullableFieldsClass nonNullableFieldsClass = new NonNullableFieldsClass(longField, doubleField,
+				inlineEnumField, primeEnumField, arrayField, inlineLangObjectField);
+
+		Assert.assertEquals(new ArrayList<>(Arrays.asList("a", "b")),
+				nonNullableFieldsClass.getArrayFieldWithDefault());
 	}
 
 	/**
