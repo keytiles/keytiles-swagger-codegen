@@ -25,7 +25,7 @@ import io.swagger.codegen.v3.CodegenModel;
  */
 public class ModelInlineMessages {
 
-	public final static String X_MODEL_EXPLANATIONS = "x-keytiles-model-explanations";
+	public final static String X_MODEL_EXPLANATIONS = IKeytilesCodegen.COMPUTED_VENDOR_PREFIX + "model-explanations";
 
 	/**
 	 * This method returns the {@link ModelInlineMessages} instance from the given model - if already

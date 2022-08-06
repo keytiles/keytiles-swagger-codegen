@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.keytiles.api.model.test.simpleconsistent.JsonSerializationTestSubclassClass;
+import com.keytiles.api.model.test.simpleconsistent.imported_2ndlevel.FruitEnum;
 
 public class JsonMarshalUnmarshalTest {
 
@@ -45,8 +46,9 @@ public class JsonMarshalUnmarshalTest {
 		// ---- GIVEN
 
 		int requiredUnconventionalNameBaseField = 10;
-		String requiredOutputIfNonDefaultBaseString = "requiredOutputIfNonDefaultBaseStringValue"; // give it a value
-																									// now
+		String requiredOutputIfNonDefaultBaseString = "requiredOutputIfNonDefaultBaseStringValue";
+		FruitEnum requiredNullableFruitEnumField = FruitEnum.APPLE;
+
 		int nonNullNoDefaultBaseInteger = 20;
 		int nonNullBaseInteger = 30;
 		String baseStringField = "baseString";
@@ -59,7 +61,7 @@ public class JsonMarshalUnmarshalTest {
 
 		JsonSerializationTestSubclassClass testObj = new JsonSerializationTestSubclassClass(
 				requiredUnconventionalNameBaseField, nonNullNoDefaultBaseInteger, requiredOutputIfNonDefaultBaseString,
-				requiredBooleanField, nonNullNoDefaultDouble);
+				requiredNullableFruitEnumField, requiredBooleanField, nonNullNoDefaultDouble);
 
 		testObj.setNonNullBaseInteger(nonNullBaseInteger);
 		testObj.setNonNullInteger(nonNullInteger);
@@ -78,6 +80,7 @@ public class JsonMarshalUnmarshalTest {
 				.contains("\"requiredOutputIfNonDefaultBaseString\":\"requiredOutputIfNonDefaultBaseStringValue\""));
 		Assert.assertTrue(jsonString.contains("\"nonNullNoDefaultBaseInteger\":20"));
 		Assert.assertTrue(jsonString.contains("\"requiredBooleanField\":true"));
+		Assert.assertTrue(jsonString.contains("\"requiredNullableFruitEnumField\":\"apple\""));
 		Assert.assertTrue(jsonString.contains("\"nonNullNoDefaultDouble\":12.8"));
 		Assert.assertTrue(jsonString.contains("\"nonNullBaseInteger\":30"));
 		Assert.assertTrue(jsonString.contains("\"baseStringField\":\"baseString\""));
@@ -98,6 +101,7 @@ public class JsonMarshalUnmarshalTest {
 		Assert.assertEquals(nonNullNoDefaultBaseInteger, deserializedObj.getNonNullNoDefaultBaseInteger().intValue());
 		Assert.assertEquals(nonNullBaseInteger, deserializedObj.getNonNullBaseInteger().intValue());
 		Assert.assertEquals(requiredOutputIfNonDefaultBaseString, deserializedObj.requiredOutputIfNonDefaultBaseString);
+		Assert.assertEquals(requiredNullableFruitEnumField, deserializedObj.requiredNullableFruitEnumField);
 		Assert.assertEquals(baseStringField, deserializedObj.baseStringField);
 		Assert.assertEquals(requiredBooleanField, deserializedObj.requiredBooleanField);
 		Assert.assertEquals(nonNullNoDefaultDouble, deserializedObj.getNonNullNoDefaultDouble().doubleValue(),
@@ -119,6 +123,7 @@ public class JsonMarshalUnmarshalTest {
 		int nonNullNoDefaultBaseInteger = 20;
 		boolean requiredBooleanField = true;
 		double nonNullNoDefaultDouble = 12.8d;
+		FruitEnum requiredNullableFruitEnumField = null;
 
 		/*
 		 * Scenario 1
@@ -133,7 +138,7 @@ public class JsonMarshalUnmarshalTest {
 
 		JsonSerializationTestSubclassClass testObj = new JsonSerializationTestSubclassClass(
 				requiredUnconventionalNameBaseField, nonNullNoDefaultBaseInteger, requiredOutputIfNonDefaultBaseString,
-				requiredBooleanField, nonNullNoDefaultDouble);
+				requiredNullableFruitEnumField, requiredBooleanField, nonNullNoDefaultDouble);
 		testObj.outputIfNonDefaultBaseInteger = outputIfNonDefaultBaseInteger;
 		testObj.outputIfNonDefaultString = outputIfNonDefaultString;
 
@@ -159,8 +164,8 @@ public class JsonMarshalUnmarshalTest {
 		outputIfNonDefaultString = "baaa";
 
 		testObj = new JsonSerializationTestSubclassClass(requiredUnconventionalNameBaseField,
-				nonNullNoDefaultBaseInteger, requiredOutputIfNonDefaultBaseString, requiredBooleanField,
-				nonNullNoDefaultDouble);
+				nonNullNoDefaultBaseInteger, requiredOutputIfNonDefaultBaseString, requiredNullableFruitEnumField,
+				requiredBooleanField, nonNullNoDefaultDouble);
 		testObj.outputIfNonDefaultBaseInteger = outputIfNonDefaultBaseInteger;
 		testObj.outputIfNonDefaultString = outputIfNonDefaultString;
 

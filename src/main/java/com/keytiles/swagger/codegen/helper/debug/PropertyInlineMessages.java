@@ -26,7 +26,8 @@ import io.swagger.codegen.v3.CodegenProperty;
  */
 public class PropertyInlineMessages {
 
-	public final static String X_PROPERTY_EXPLANATIONS = "x-keytiles-property-explanations";
+	public final static String X_PROPERTY_EXPLANATIONS = IKeytilesCodegen.COMPUTED_VENDOR_PREFIX
+			+ "property-explanations";
 
 	/**
 	 * This method returns the {@link PropertyInlineMessages} instance from the given property - if

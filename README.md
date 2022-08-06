@@ -344,15 +344,17 @@ With the names we try to be concrete language agnostic (e.g. Java or Javascript 
 
 Please also note that 
 
-## x-keytiles-serialize-only-if-non-default
+## x-keytiles-serialize-only-if-non-default-properties
 
-data type: `boolean`  
-default: `false`  
+data type: `list<string>`  
+default: `null`  
 supported in modelStyles: all  
 supported in languages/libraries: KeytilesJava/Jackson based libraries  
-applicable on elements: object properties  
+applicable on elements: object  
 
-It becomes important if model object is serialized e.g. into a JSON String (or similar). If this flag is true then it tells the serialization logic to omit this property from the output if its value is the (data type dependent) default value.
+It is a list of property names on Object level - works similarly to `required` built in possibility.
+
+It becomes important if model object is serialized e.g. into a JSON String (or similar). If property is listed here then it tells the serialization logic to omit this property from the output if its value is the (data type dependent!) default value.
 
 E.g. in Jackson json serialization this will annotate the property with `@JsonInclude(Include.NON_DEFAULT)` annotation
 
@@ -361,7 +363,7 @@ E.g. in Jackson json serialization this will annotate the property with `@JsonIn
 data type: `boolean`  
 default: inherited from above  
 supported in modelStyles: all  
-supported in languages/libraries: all
+supported in languages/libraries: all  
 applicable on elements: object  
 
 If this is present then it is overriding against global option `keepPropertyNames` (see [option documentation](#option_keeppropertynames)) for all properties defined in this object. Otherwise value of `keepPropertyNames` option is inherited.
@@ -371,7 +373,7 @@ If this is present then it is overriding against global option `keepPropertyName
 data type: `boolean`  
 default: inherited from above  
 supported in modelStyles: all  
-supported in languages/libraries: all
+supported in languages/libraries: all  
 applicable on elements: object properties
  
 If this is present then it is overriding against global option `keepPropertyNames` (see [option documentation](#option_keeppropertynames)) for more details!) or against `x-keytiles-keep-property-names` defined on parent object. Otherwise value is inherited from above.
@@ -381,7 +383,7 @@ If this is present then it is overriding against global option `keepPropertyName
 data type: `boolean`  
 default: inherited from [option 'usePrimitiveTypesIfPossible'](#option_useprimitivetypesifpossible)  
 supported in modelStyles: all  
-supported in languages/libraries: all
+supported in languages/libraries: all  
 applicable on elements: objects
 
 See section [Property datatypes - using primitive types?](#using_primitive_types) for more details
@@ -391,7 +393,7 @@ See section [Property datatypes - using primitive types?](#using_primitive_types
 data type: `boolean`  
 default: inherited from [option 'usePrimitiveTypesIfPossible'](#option_useprimitivetypesifpossible)  
 supported in modelStyles: all  
-supported in languages/libraries: all
+supported in languages/libraries: all  
 applicable on elements: object properties
 
 See section [Property datatypes - using primitive types?](#using_primitive_types) for more details

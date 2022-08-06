@@ -11,11 +11,16 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.keytiles.api.model.test.simpleconsistent.CatAndDogResponseClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.InlineEnumFieldEnum;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
+import com.keytiles.api.model.test.simpleconsistent.imported.ContainerClass;
 import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableEnumWithDefault;
+import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableMapClass;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableObject;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredObject;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferringClass;
@@ -47,6 +52,19 @@ public class CheckGeneratedSourcesTest {
 
 		Assert.assertEquals(new ArrayList<>(Arrays.asList("a", "b")),
 				nonNullableFieldsClass.getArrayFieldWithDefault());
+	}
+
+	/**
+	 * This method is not a runtime test more a compilation test - to make sure we can not pass tests if
+	 * there is a problem with any generated models used in this method
+	 */
+	public void justToCheckAllClassesAreValid() {
+
+		int requestReceivedAt = 1000000;
+		ContainerClass container = new ContainerClass("containerId");
+		String dog = "dog";
+		String cat = "cat";
+		new CatAndDogResponseClass(requestReceivedAt, container, dog, cat);
 	}
 
 	/**
@@ -92,6 +110,28 @@ public class CheckGeneratedSourcesTest {
 		ReferredObject testObj = new ReferredObject();
 		testObj.prop1 = "testProp";
 		theInstance.inPlaceNullableObjectField = testObj;
+
+		// ---- THEN - referredNullableMapField
+
+		Assert.assertTrue(fields.containsKey("referredNullableMapField"));
+		// it should be public field
+		Assert.assertTrue(Modifier.isPublic(fields.get("referredNullableMapField").getModifiers()));
+		// type should be this
+		Assert.assertEquals(ReferredNullableMapClass.class, fields.get("referredNullableMapField").getType());
+
+		// ---- THEN - referredNullableMapOnlyNonDefaultField
+
+		Assert.assertTrue(fields.containsKey("referredNullableMapOnlyNonDefaultField"));
+		// it should be public field
+		Assert.assertTrue(Modifier.isPublic(fields.get("referredNullableMapOnlyNonDefaultField").getModifiers()));
+		// type should be this
+		Assert.assertEquals(ReferredNullableMapClass.class,
+				fields.get("referredNullableMapOnlyNonDefaultField").getType());
+		// and field should be annotated with @JsonInclude(Include.NON_DEFAULT)
+		JsonInclude annotation = fields.get("referredNullableMapOnlyNonDefaultField").getAnnotation(JsonInclude.class);
+		Assert.assertNotNull(annotation);
+		Assert.assertEquals(Include.NON_DEFAULT, annotation.value());
+
 	}
 
 }

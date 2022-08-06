@@ -17,6 +17,13 @@ import com.keytiles.swagger.codegen.helper.maven.MavenExecutionInfo;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 
+/**
+ * This class takes part in parsing and understanding the extra ConfigOptions we provide for our
+ * Codegens
+ *
+ * @author attilaw
+ *
+ */
 public class ConfigOptionHelper {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(KeytilesJavaCodegen.class);

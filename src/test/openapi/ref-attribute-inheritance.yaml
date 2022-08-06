@@ -42,10 +42,19 @@ components:
           default: "buuu"
         prop2:
           type: integer
-          default: 5          
+          default: 5
+
+    ReferredNullableMapClass:
+      nullable: true
+      type: object
+      additionalProperties:
+        type: string
+        example: '<the name>'
 
     ReferringClass:
       type: object
+      x-keytiles-serialize-only-if-non-default-properties:
+      - referredNullableMapOnlyNonDefaultField
       properties:
         referredNullableEnumField:
           $ref: '#/components/schemas/ReferredNullableEnumWithDefault'
@@ -58,6 +67,11 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ReferredObject'
           nullable: true
+        referredNullableMapField:
+          $ref: '#/components/schemas/ReferredNullableMapClass'
+        referredNullableMapOnlyNonDefaultField:
+          $ref: '#/components/schemas/ReferredNullableMapClass'
+          
 
 
       

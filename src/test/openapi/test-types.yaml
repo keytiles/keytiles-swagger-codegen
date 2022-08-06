@@ -28,6 +28,8 @@ components:
       type: object
       required:
       - requiredBooleanField
+      x-keytiles-serialize-only-if-non-default-properties:
+      - outputIfNonDefaultString
       # in this class we turn on using simple datatypes
       x-keytiles-use-primitive-datatypes-if-possible: true
       properties:
@@ -62,7 +64,6 @@ components:
         outputIfNonDefaultString:
           type: string
           nullable: true
-          x-keytiles-serialize-only-if-non-default: true
         
     # This class is just testing simple property level mappings
     # and does not declare any required or readOnly fields
@@ -70,6 +71,8 @@ components:
     SimpleFieldsClass:
       type: object
       x-keytiles-keep-property-names: true
+      x-keytiles-serialize-only-if-non-default-properties:
+      - unconventional_name_Field2
       properties:
         # this field should be renamed - as local 'x-keytiles-keep-property-name' tells it
         unconventional_name_Field1:
@@ -83,7 +86,6 @@ components:
           type: integer
           nullable: true
           description: unconventional_name_Field2 field description
-          x-keytiles-serialize-only-if-non-default: true
         # to test it is mapped as long type
         longField:
           type: integer
@@ -242,8 +244,14 @@ components:
             label:
               type: string
           
-
-
+    # This one is testing deep imports working correctly if we have long inheritance
+    CatAndDogResponseClass:
+      allOf:
+      - $ref: 'imported-types.yaml#/components/schemas/DogResponseClass'    
+      type: object
+      properties:
+        cat:
+          type: string
 
           
       

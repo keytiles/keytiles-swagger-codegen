@@ -4,6 +4,7 @@ import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBoo
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -292,6 +293,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
 		super.postProcessModelProperty(model, property);
 
+		CodegenBugfixAndEnhanceHelper.validateOnlySupportedVendorAttributesAreUsedOnModelProperty(this, model,
+				property);
+
 		// let's hook in the explanations if feature is requested
 		if (addExplanationsToModel) {
 			// we will simply create instances on every model and property
@@ -303,12 +307,12 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		// LOGGER.info("buu");
 		// }
 
-		if ("arrayFieldWithDefault".equals(property.baseName)
-				|| "objectArrayFieldWithDefault".equals(property.baseName)) {
-			LOGGER.info("buu");
-		}
+		// if ("arrayFieldWithDefault".equals(property.baseName)
+		// || "objectArrayFieldWithDefault".equals(property.baseName)) {
+		// LOGGER.info("buu");
+		// }
 
-		support_outputOnlyIfNonDefaultFlag(model, property);
+		support_outputOnlyIfNonDefault(model, property);
 		support_keepPropertyNames(model, property);
 
 		support_usePrimitiveTypesIfPossible(model, property);
@@ -327,7 +331,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 			return;
 		}
 		// does it have a default set in schema?
-		if (!property.jsonSchema.contains("default")) {
+		if (!property.jsonSchema.contains("\"default\"")) {
 			return;
 		}
 
@@ -376,20 +380,27 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		property.defaultValue = property.defaultValue.replace("<>()", "<>(Arrays.asList(" + jsonStr + "))");
 	}
 
-	protected void support_outputOnlyIfNonDefaultFlag(CodegenModel model, CodegenProperty property) {
-		boolean addJsonInclude_NonDefault = false;
+	protected void support_outputOnlyIfNonDefault(CodegenModel model, CodegenProperty property) {
+		List<String> serializeOnlyIfNonDefaultProperties = null;
+		if (model.getVendorExtensions().containsKey(X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES)) {
+			// if set on Model level then it takes precedence over globl option
+			serializeOnlyIfNonDefaultProperties = (List<String>) model.getVendorExtensions()
+					.get(X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES);
+		}
 
-		if (getBooleanValue(property, X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG)) {
-			addJsonInclude_NonDefault = true;
+		boolean addJsonInclude_NonDefault = serializeOnlyIfNonDefaultProperties != null
+				&& serializeOnlyIfNonDefaultProperties.contains(property.baseName);
+
+		if (addJsonInclude_NonDefault) {
 			if (additionalProperties.containsKey("jackson")) {
 				model.imports.add("JsonInclude");
 				model.imports.add("JsonInclude.Include");
 
 				LOGGER.info("model {}, field '{}': due to {} setting necessary annotations will be added", model.name,
-						property.baseName, X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG);
-				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION, "'"
-						+ X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG
-						+ ": true' is added to this property - so necessary annotations added here OR to the getter");
+						property.baseName, X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES);
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"listed in '" + X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES
+								+ "' - so necessary annotations added here OR to the getter");
 
 			} else {
 				// TODO does this have a Gson alternative maybe???
@@ -397,21 +408,22 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		}
 
 		// finally write back the result - so the template rendering can also see that if needed
-		property.getVendorExtensions().put(X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG, addJsonInclude_NonDefault);
+		property.getVendorExtensions().put(X_COMPUTED_PROPERTY_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG,
+				addJsonInclude_NonDefault);
 	}
 
 	protected void support_keepPropertyNames(CodegenModel model, CodegenProperty property) {
 		boolean modelKeepPropertyNames = keepPropertyNames;
 		boolean keepPropertyName = keepPropertyNames;
 
-		if (model.getVendorExtensions().containsKey(X_KEEP_PROPERTY_NAMES_FLAG)) {
+		if (model.getVendorExtensions().containsKey(X_OBJECT_KEEP_PROPERTY_NAMES_FLAG)) {
 			// if set on Model level then it takes precedence over globl option
-			modelKeepPropertyNames = getBooleanValue(model, X_KEEP_PROPERTY_NAMES_FLAG);
+			modelKeepPropertyNames = getBooleanValue(model, X_OBJECT_KEEP_PROPERTY_NAMES_FLAG);
 		}
 
 		// property level flag takes precedence here - if set
-		if (property.getVendorExtensions().containsKey(X_KEEP_PROPERTY_NAME_FLAG)) {
-			keepPropertyName = getBooleanValue(property, X_KEEP_PROPERTY_NAME_FLAG);
+		if (property.getVendorExtensions().containsKey(X_PROPERTY_KEEP_PROPERTY_NAME_FLAG)) {
+			keepPropertyName = getBooleanValue(property, X_PROPERTY_KEEP_PROPERTY_NAME_FLAG);
 		} else {
 			// if not set then inherits from Model level
 			keepPropertyName = modelKeepPropertyNames;
@@ -441,8 +453,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		}
 
 		// finally write back the result - so the template rendering can also see that if needed
-		property.getVendorExtensions().put(X_KEEP_PROPERTY_NAME_FLAG, keepPropertyName);
-		model.getVendorExtensions().put(X_KEEP_PROPERTY_NAMES_FLAG, modelKeepPropertyNames);
+		property.getVendorExtensions().put(X_PROPERTY_KEEP_PROPERTY_NAME_FLAG, keepPropertyName);
+		model.getVendorExtensions().put(X_OBJECT_KEEP_PROPERTY_NAMES_FLAG, modelKeepPropertyNames);
 	}
 
 	protected String getPrimitiveTypeDefaultValue(String primitiveType) {
@@ -502,8 +514,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		boolean canUsePrimitiveType = canNotUsePrimitiveTypeReason == null;
 
 		// OK, now check if we need/want to use primitive type
-		boolean usePrimitiveType = getBooleanValue(property, X_USE_PRIMITIVE_TYPE);
-		boolean usePrimitiveTypeIfPossible = getBooleanValue(model, X_USE_PRIMITIVE_TYPES_IF_POSSIBLE)
+		boolean usePrimitiveType = getBooleanValue(property, X_PROPERTY_USE_PRIMITIVE_TYPE);
+		boolean usePrimitiveTypeIfPossible = getBooleanValue(model, X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)
 				|| this.usePrimitiveTypesIfPossible;
 
 		// let's evaluate...
@@ -513,8 +525,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 			if (canUsePrimitiveType) {
 				primitiveTypeUsed = true;
 				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
-						"primitive type is used because it is enforced on property level by '" + X_USE_PRIMITIVE_TYPE
-								+ ": true' flag");
+						"primitive type is used because it is enforced on property level by '"
+								+ X_PROPERTY_USE_PRIMITIVE_TYPE + ": true' flag");
 			} else {
 				// this is a strong failure!
 				throw new IllegalStateException("unsatisfiable wish - generation must abort! In model '" + model.name
@@ -527,9 +539,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 			if (canUsePrimitiveType) {
 				primitiveTypeUsed = true;
 
-				if (getBooleanValue(model, X_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
+				if (getBooleanValue(model, X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
 					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
-							"primitive type is used because a) it can b) '" + X_USE_PRIMITIVE_TYPES_IF_POSSIBLE
+							"primitive type is used because a) it can b) '" + X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE
 									+ ": true' is set on parent object");
 				} else {
 					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
@@ -581,7 +593,12 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	protected void postProcessAllCodegenModels(Map<String, CodegenModel> allModels) {
 		super.postProcessAllCodegenModels(allModels);
 
+		allModels.values().forEach(model -> {
+			CodegenBugfixAndEnhanceHelper.validateOnlySupportedVendorAttributesAreUsedOnModel(this, model);
+		});
+
 		CodegenBugfixAndEnhanceHelper.fixReferredModelAttributesInheritance(allModels);
+
 	}
 
 	/**
@@ -629,9 +646,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 				canModelBeGenerated(theModel);
 
-				// if ("ReferringClass".equals(theModel.name)) {
-				// LOGGER.info("buu");
-				// }
+				if ("CatAndDogResponseClass".equals(theModel.name)) {
+					LOGGER.info("buu");
+				}
 
 				ModelExtraInfo extraInfo = ModelExtraInfo.getExtraInfo(theModel, this);
 
@@ -673,6 +690,18 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 						LOGGER.info("model {}: injecting import {} - ", theModel.name, fullyQualifiedTypeImport);
 					}
+
+					// we also need to ensure that all types of all ctor arguments are imported if needed
+					// so now let's focus on the datatype a bit...
+					mappedType = typeMapping.get(property.datatype);
+					if (mappedType == null) {
+						mappedType = property.datatype;
+					}
+					if (mappedType != null) {
+						String fullyQualifiedTypeImport = importMapping.get(mappedType);
+						addImportToModelMapOnPostProcessAllModelsHook(modelMap, fullyQualifiedTypeImport);
+					}
+
 				}
 
 				// do we have non-zero argument constructor?
@@ -773,6 +802,23 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public List<String> getAddSchemaModelsToImportMappingsFromMavenExecutions() {
 		return addSchemaModelsToImportMappingsFromMavenExecutions == null ? null
 				: new ArrayList<>(addSchemaModelsToImportMappingsFromMavenExecutions);
+	}
+
+	@Override
+	public Set<String> getAllSupportedObjectLevelVendorFieldNames() {
+		return new HashSet<>(Arrays.asList( //
+				X_OBJECT_KEEP_PROPERTY_NAMES_FLAG, //
+				X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES, //
+				X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE //
+		));
+	}
+
+	@Override
+	public Set<String> getAllSupportedPropertyLevelVendorFieldNames() {
+		return new HashSet<>(Arrays.asList( //
+				X_PROPERTY_KEEP_PROPERTY_NAME_FLAG, //
+				X_PROPERTY_USE_PRIMITIVE_TYPE //
+		));
 	}
 
 }

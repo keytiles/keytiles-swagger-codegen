@@ -36,6 +36,10 @@ components:
       required:
       - required_unconventional_name_baseField
       - requiredOutputIfNonDefaultBaseString
+      - requiredNullableFruitEnumField
+      x-keytiles-serialize-only-if-non-default-properties:
+      - requiredOutputIfNonDefaultBaseString
+      - outputIfNonDefaultBaseInteger
       # in this class we turn off using simple datatypes
       x-keytiles-use-primitive-datatypes-if-possible: false
       properties:
@@ -64,14 +68,43 @@ components:
         requiredOutputIfNonDefaultBaseString:
           type: string
           nullable: true
-          x-keytiles-serialize-only-if-non-default: true
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         outputIfNonDefaultBaseInteger:
           type: integer
           nullable: true
-          x-keytiles-serialize-only-if-non-default: true
         # this field is added to test 2 level deep imports
         fruitEnumField:
           $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'
+        # this field is also added to test 2 level deep imports
+        requiredNullableFruitEnumField:
+          $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'          
+
+
+    BaseResponseClass:
+      type: object
+      properties:
+        requestReceivedAt:
+          type: integer
       
+    ContainerClass:
+      type: object
+      properties:
+        id:
+          type: string
+
+    ContainerResponseClass:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponseClass'    
+      type: object
+      properties:
+        container:
+          $ref: '#/components/schemas/ContainerClass'
+
+    DogResponseClass:
+      allOf:
+      - $ref: '#/components/schemas/ContainerResponseClass'    
+      type: object
+      properties:
+        dog:
+          type: string
       

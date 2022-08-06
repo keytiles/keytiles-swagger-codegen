@@ -2,6 +2,7 @@ package com.keytiles.swagger.codegen;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
 
@@ -25,11 +26,19 @@ public interface IKeytilesCodegen extends CodegenConfig {
 	public final static String OPT_MAVEN_EXECUTION_ID = "mavenExecutionId";
 	public final static String OPT_ADD_SCHEMA_MODELS_TO_IMPORT_MAPPING_FROM_MAVENEXECUTIONS = "addSchemaModelsToImportMappingsFromMavenExecutions";
 
-	public final static String X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG = "x-keytiles-serialize-only-if-non-default";
-	public final static String X_KEEP_PROPERTY_NAMES_FLAG = "x-keytiles-keep-property-names";
-	public final static String X_KEEP_PROPERTY_NAME_FLAG = "x-keytiles-keep-property-name";
-	public final static String X_USE_PRIMITIVE_TYPES_IF_POSSIBLE = "x-keytiles-use-primitive-datatypes-if-possible";
-	public final static String X_USE_PRIMITIVE_TYPE = "x-keytiles-use-primitive-datatype";
+	public final static String VENDOR_PREFIX = "x-keytiles-";
+	public final static String COMPUTED_VENDOR_PREFIX = "x-keytilescomputed-";
+
+	public final static String X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES = VENDOR_PREFIX
+			+ "serialize-only-if-non-default-properties";
+	public final static String X_OBJECT_KEEP_PROPERTY_NAMES_FLAG = VENDOR_PREFIX + "keep-property-names";
+	public final static String X_PROPERTY_KEEP_PROPERTY_NAME_FLAG = VENDOR_PREFIX + "keep-property-name";
+	public final static String X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE = VENDOR_PREFIX
+			+ "use-primitive-datatypes-if-possible";
+	public final static String X_PROPERTY_USE_PRIMITIVE_TYPE = VENDOR_PREFIX + "use-primitive-datatype";
+
+	public final static String X_COMPUTED_PROPERTY_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG = COMPUTED_VENDOR_PREFIX
+			+ "serialize-only-if-non-default";
 
 	/**
 	 * Considers the provided {@link #importMapping()} plus {@link #getIgnoreImportMapping()} and
@@ -67,5 +76,23 @@ public interface IKeytilesCodegen extends CodegenConfig {
 	public String getMavenExecutionId();
 
 	public List<String> getAddSchemaModelsToImportMappingsFromMavenExecutions();
+
+	/**
+	 * The Codegen implementation should return all "x-" prefixed vendor stuff which it supports on
+	 * Object level. This is used in a validation step which ensures that user can not use any other
+	 * (maybe became unsupported) of these things accidentally as a left-over from previous versions
+	 *
+	 * @return all "x-" attribute names supported on Object level
+	 */
+	public Set<String> getAllSupportedObjectLevelVendorFieldNames();
+
+	/**
+	 * The Codegen implementation should return all "x-" prefixed vendor stuff which it supports on
+	 * Property level. This is used in a validation step which ensures that user can not use any other
+	 * (maybe became unsupported) of these things accidentally as a left-over from previous versions
+	 *
+	 * @return all "x-" attribute names supported on Object level
+	 */
+	public Set<String> getAllSupportedPropertyLevelVendorFieldNames();
 
 }
