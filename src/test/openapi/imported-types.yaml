@@ -107,4 +107,12 @@ components:
       properties:
         dog:
           type: string
+          
+    # This is to test imported enumerations          
+    CommonErrorCodes:
+      type: string
+      enum:
+      - common_error_1
+      - common_error_2
+    
       

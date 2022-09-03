@@ -28,6 +28,7 @@ The following are happening globally:
 * added support to use primitive types in models instead of always using wrapper classes - see [option usePrimitiveTypesIfPossible](#option_useprimitivetypesifpossible)
 * handling of referred in (using `$ref`) objects/enums is enhanced - now the attributes of the referred object (if has any) like `nullable` or `default` is considered and not just simply ignored - in line with [OpenApi v3 spec, "$ref and Sibling Elements" section](https://swagger.io/docs/specification/using-ref)
 * schema validation is enhanced so model generation will break in cases which does not make any sense, e.g. if a) someone writes a schema in which he tries to extend an Enum (using `allOf`) or b) one makes an object property `mandatory=true` and also assignd a `default` value (as this is contradicting information due to OpenApi spec)
+* however extending an Enum is not possible (in Java for sure) we added support for using composition of Enums - see [Support for Enum composition](#enum_composition)
 
 
 ### <a name="option_modelstyle"></a>option 'modelStyle'
@@ -398,4 +399,6 @@ applicable on elements: object properties
 
 See section [Property datatypes - using primitive types?](#using_primitive_types) for more details
 
- 
+# <a name="enum_composition"></a>Support for Enum compositions
+
+TO DO!

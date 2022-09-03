@@ -77,6 +77,16 @@ public class ModelInlineMessages {
 		}
 	}
 
+	public static void appendToClass(CodegenModel model, ModelMessageType type, String message) {
+		ModelInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(model, type)
+				: getMessages(model, type);
+
+		if (messages != null) {
+			messages.appendToClass(prefixMessage(type, message));
+		}
+	}
+
+	private final List<Map<String, String>> forTheClass = new LinkedList<>();
 	private final List<Map<String, String>> forConstructor = new LinkedList<>();
 
 	public ModelInlineMessages() {
@@ -86,11 +96,22 @@ public class ModelInlineMessages {
 		return forConstructor;
 	}
 
+	public List<Map<String, String>> getForTheClass() {
+		return forTheClass;
+	}
+
 	private void appendToConstructor(String message) {
 		Map<String, String> wrapper = new HashMap<>();
 		wrapper.put("explanationMessage", message);
 
 		forConstructor.add(wrapper);
+	}
+
+	private void appendToClass(String message) {
+		Map<String, String> wrapper = new HashMap<>();
+		wrapper.put("explanationMessage", message);
+
+		forTheClass.add(wrapper);
 	}
 
 }

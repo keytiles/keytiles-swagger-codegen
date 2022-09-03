@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import com.keytiles.swagger.codegen.helper.CodegenUtil;
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
 
 import io.swagger.codegen.v3.CodegenConfig;
@@ -39,6 +40,34 @@ public interface IKeytilesCodegen extends CodegenConfig {
 
 	public final static String X_COMPUTED_PROPERTY_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG = COMPUTED_VENDOR_PREFIX
 			+ "serialize-only-if-non-default";
+
+	/**
+	 * Boolean property added if we merged this enum from composition<br>
+	 * see
+	 * {@link CodegenUtil#getComposedEnumModelAsMergedEnumModel(io.swagger.codegen.v3.CodegenModel, boolean)}
+	 */
+	public final static String X_MERGED_ENUM = VENDOR_PREFIX + "merged-enum";
+	/**
+	 * Boolean property added if we merged this enum from composition and this is a model which was not
+	 * directly defined in the schema by user but Codegen fabricated it<br>
+	 * see
+	 * {@link CodegenUtil#getComposedEnumModelAsMergedEnumModel(io.swagger.codegen.v3.CodegenModel, boolean)}
+	 */
+	public final static String X_FABRICATED_MERGED_ENUM = VENDOR_PREFIX + "fabricated-merged-enum";
+	/**
+	 * Boolean property added if we merged this enum from composition and this is a model which was
+	 * directly defined in the schema by user<br>
+	 * see
+	 * {@link CodegenUtil#getComposedEnumModelAsMergedEnumModel(io.swagger.codegen.v3.CodegenModel, boolean)}
+	 */
+	public final static String X_SCHEMA_DEFINED_MERGED_ENUM = VENDOR_PREFIX + "schema-defined-merged-enum";
+
+	/**
+	 * Name of other Enum models with whom this Enum model is basically equals<br>
+	 * see
+	 * {@link CodegenUtil#areEnumModelsEqual(io.swagger.codegen.v3.CodegenModel, io.swagger.codegen.v3.CodegenModel)}
+	 */
+	public final static String X_ENUM_EQUALS_TO = VENDOR_PREFIX + "enum-equals-to";
 
 	/**
 	 * Considers the provided {@link #importMapping()} plus {@link #getIgnoreImportMapping()} and

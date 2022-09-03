@@ -142,8 +142,15 @@ components:
         arrayFieldWithDefault:
           type: array
           nullable: true
-          description: 'arrayField field description'
+          description: 'arrayFieldWithDefault field description'
           default: ['a','b']
+          items:
+            type: string
+        arrayFieldWithEmptyArrayDefault:
+          type: array
+          nullable: true
+          description: 'arrayFieldWithEmptyArrayDefault field description'
+          default: []
           items:
             type: string
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
@@ -253,5 +260,133 @@ components:
         cat:
           type: string
 
+
+    # ===============
+    # testing enum compositions
+    # ===============
+
+    LocalErrorCodes:
+      type: string
+      enum:
+      - containerId_missing
+      - error_code_1
+      - error_code_2
+      
+    # what about oneOf, allOf ? what to do in that case? maybe do the same...
+    ExtendedErrorCodesAnyOf:
+      type: string
+      anyOf:
+      - $ref: "#/components/schemas/LocalErrorCodes"
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+
+    ExtendedErrorCodesOneOf:
+      type: string
+      oneOf:
+      - $ref: "#/components/schemas/LocalErrorCodes"
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+
+# for now we do not support this style so remove these
+# otherwise model generation would kick an schema exception
+#
+#    ExtendedErrorCodesInlineAnyOf:
+#      type: string
+#      anyOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+#
+#    ExtendedErrorCodesInlineOneOf:
+#      type: string
+#      oneOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+#
+#    ExtendedErrorCodesInlineAllOf:
+#      type: string
+#      allOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+
+      
+    ErrorResponseClass:
+      type: object
+      properties:
+        errorCodeInplaceOneOf:
+          oneOf:
+          - $ref: "#/components/schemas/LocalErrorCodes"
+          - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeInplaceAnyOf:
+          anyOf:
+          - $ref: "#/components/schemas/LocalErrorCodes"
+          - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeArrayInplaceOneOf:
+          type: array
+          items:
+            oneOf:
+            - $ref: "#/components/schemas/LocalErrorCodes"
+            - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeArrayInplaceAnyOf:
+          type: array
+          items:
+            anyOf:
+            - $ref: "#/components/schemas/LocalErrorCodes"
+            - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        extendedErrorCodesOneOfField:
+          $ref: "#/components/schemas/ExtendedErrorCodesOneOf"
+        extendedErrorCodesOneOfArrayField:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtendedErrorCodesOneOf"
+          nullable: true
+# these models were commented out - ^^^ see above!
+#        extendedErrorCodesInlineAnyOfField:
+#          $ref: "#/components/schemas/ExtendedErrorCodesInlineAnyOf"
+#        extendedErrorCodesInlineAnyOfArrayField:
+#          type: array
+#          items:
+#            $ref: "#/components/schemas/ExtendedErrorCodesInlineAnyOf"
+#          nullable: true
+      
+
+  
+    ManagementEndpointLocalErrorCodes:
+      type: string
+      enum:
+      - containerId_missing
+      - containerId_invalid
+      - containerData_missing
+      - containerData_invalid
+      - containerData_jsonDecodeFailed
+      - userIdTerm_missing
+      - userIdTerm_invalid
+      - userData_missing
+      - userData_invalid
+      - userData_jsonDecodeFailed
+      - passwordData_missing
+      - passwordData_invalid
+      - credentials
+
+    ManagementEndpointErrorCodes:
+      oneOf:
+      - $ref: "#/components/schemas/ManagementEndpointLocalErrorCodes"
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+  
+    ManagementEndpointProblemClass:
+      type: object
+      properties:
+        errorCodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManagementEndpointErrorCodes"
+          nullable: true
           
       

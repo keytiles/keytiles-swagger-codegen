@@ -2,6 +2,9 @@
 @JsonInclude(JsonInclude.Include.NON_NULL)
 {{/notNullJacksonAnnotation}}
 
+{{#vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
+// @Generator: {{{explanationMessage}}} 
+{{/vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
 public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcelableModel}}implements Parcelable {{#serializableModel}}, Serializable {{/serializableModel}}{{#interfaceModels}}{{#@first}}, {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/parcelableModel}}{{^parcelableModel}}{{#serializableModel}}implements Serializable{{#interfaceModels}}{{#@first}}, {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/serializableModel}}{{^serializableModel}}{{#interfaceModels}}{{#@first}}implements {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/serializableModel}}{{/parcelableModel}}{
 {{#serializableModel}}
   private static final long serialVersionUID = 1L;
@@ -73,7 +76,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/isXmlAttribute}}
   {{/withXml}}
   {{#isContainer}}
-  private {{{datatypeWithEnum}}} {{name}}{{^nullable}} = {{{defaultValue}}}{{/nullable}}{{#nullable}} = null{{/nullable}};
+  private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
   {{/isContainer}}
   {{^isContainer}}
   private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
@@ -137,7 +140,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @SerializedName("{{baseName}}")
   {{/gson}}
   {{#isContainer}}
-  public {{{datatypeWithEnum}}} {{name}}{{^nullable}} = {{{defaultValue}}}{{/nullable}}{{#nullable}} = null{{/nullable}};
+  public {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
   {{/isContainer}}
   {{^isContainer}}
   public {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};

@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.keytiles.swagger.codegen.error.SchemaValidationException;
 import com.keytiles.swagger.codegen.helper.CodegenBugfixAndEnhanceHelper;
+import com.keytiles.swagger.codegen.helper.CodegenUtil;
 import com.keytiles.swagger.codegen.helper.config.ConfigOptionHelper;
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
 import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
@@ -31,7 +32,6 @@ import com.keytiles.swagger.codegen.model.ModelExtraInfo;
 import com.keytiles.swagger.codegen.model.ModelStyle;
 
 import io.swagger.codegen.v3.CliOption;
-import io.swagger.codegen.v3.CodegenConstants;
 import io.swagger.codegen.v3.CodegenModel;
 import io.swagger.codegen.v3.CodegenProperty;
 import io.swagger.codegen.v3.DefaultGenerator;
@@ -318,6 +318,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		support_usePrimitiveTypesIfPossible(model, property);
 
 		support_arrayDefaultValue(model, property);
+
 	}
 
 	/**
@@ -332,6 +333,17 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		}
 		// does it have a default set in schema?
 		if (!property.jsonSchema.contains("\"default\"")) {
+
+			// OK this array does not have any default items
+			// if the property is nullable it does not make sense to create an ArrayList object so lets null it
+			// out
+			if (property.nullable) {
+				property.defaultValue = "null";
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"this array does not have default and nullable - so let's keep it on NULL then");
+			}
+
 			return;
 		}
 
@@ -364,20 +376,21 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 			PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 					"default array value was set in schema - applied here");
+
+			// OK let's create the string representation of the item list
+			String jsonStr = null;
+			try {
+				jsonStr = objectMapper.writeValueAsString(defaultValues);
+			} catch (JsonProcessingException e) {
+				// oops
+				throw new IllegalStateException("We failed to produce array default value of " + model.name + "."
+						+ property.baseName + " due to json serialization error: " + e);
+			}
+			// let's string hack a bit! ;-)
+			jsonStr = jsonStr.replace("[", "").replace("]", "");
+			property.defaultValue = property.defaultValue.replace("<>()", "<>(Arrays.asList(" + jsonStr + "))");
 		}
 
-		// OK let's create the string representation of the item list
-		String jsonStr = null;
-		try {
-			jsonStr = objectMapper.writeValueAsString(defaultValues);
-		} catch (JsonProcessingException e) {
-			// oops
-			throw new IllegalStateException("We failed to produce array default value of " + model.name + "."
-					+ property.baseName + " due to json serialization error: " + e);
-		}
-		// let's string hack a bit! ;-)
-		jsonStr = jsonStr.replace("[", "").replace("]", "");
-		property.defaultValue = property.defaultValue.replace("<>()", "<>(Arrays.asList(" + jsonStr + "))");
 	}
 
 	protected void support_outputOnlyIfNonDefault(CodegenModel model, CodegenProperty property) {
@@ -613,10 +626,68 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 		if (theModel.parentModel != null && theModel.parentModel.getIsEnum()) {
 			// it is not possible to extend an enum
+
 			throw new SchemaValidationException("We can not generate this schema :-( We ran into a class '"
 					+ theModel.name + "' which is extending an enum '" + theModel.parent
-					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nIf you can somehow remove AnyOf, AllOf, OneOf markers using this enum then do it an you can continue!");
+					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nProbably this is caused by an 'allOf' composition referring in an Enum. You need to remove it and do your schema differently!");
 		}
+	}
+
+	/**
+	 * This is recognizing anyOf, oneOf, allOf (well this last one not for now - see
+	 * .canModelBeGenerated()) compositions of Enums and merging/replacing them with one Enum
+	 *
+	 * @param objs
+	 */
+	protected void support_enumCompositions(Map<String, Object> objs) {
+
+		// let's iterate over all entries and check / hunt for enum composition models!
+
+		// we will collect up all stuff we replaced during this turn
+		Map<String, CodegenModel> replacedEnums = new HashMap<>();
+
+		objs.entrySet().forEach(modelEntry -> {
+			CodegenModel propertyModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
+
+			if ("ManagementEndpointErrorCodes".equals(propertyModel.name)) {
+				LOGGER.info("buu");
+			}
+
+			CodegenModel joinedEnumModel = null;
+			try {
+				// this can return null - if not appropriate for merging
+				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(propertyModel,
+						addExplanationsToModel);
+			} catch (Exception e) {
+				throw new IllegalStateException(
+						"Oops! Failed to merge Enum composition in model '" + propertyModel + "': " + e.getMessage());
+			}
+
+			// let's replace the type
+			if (joinedEnumModel != null) {
+				CodegenUtil.replaceModelInPostProcessAllModelsInput(objs, modelEntry.getKey(), joinedEnumModel);
+				replacedEnums.put(modelEntry.getKey(), joinedEnumModel);
+			}
+		});
+
+		// next step: let's discover enums who are equal to each other so potentially they can be replaced
+		// with each other
+		replacedEnums.entrySet().forEach(modelEntry -> {
+			Set<String> equalsTo = new HashSet<>();
+			replacedEnums.entrySet().forEach(modelEntry2 -> {
+				if (modelEntry.getValue() != modelEntry2.getValue()
+						&& CodegenUtil.areEnumModelsEqual(modelEntry.getValue(), modelEntry2.getValue())) {
+					equalsTo.add(modelEntry2.getKey());
+				}
+			});
+			modelEntry.getValue().getVendorExtensions().put(IKeytilesCodegen.X_ENUM_EQUALS_TO, equalsTo);
+
+			boolean schemaDefined = modelEntry.getValue()
+					.getBooleanValue(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM);
+			LOGGER.info("=== enum {} (schema-defined: {}): equals to: {}", modelEntry.getKey(), schemaDefined,
+					equalsTo);
+		});
+
 	}
 
 	/**
@@ -638,18 +709,18 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
 		Map<String, Object> allProcessedModels = super.postProcessAllModels(objs);
 
-		if (modelStyle == ModelStyle.simpleConsistent) {
-			// we will scan stuff and add necessary new render template variables
-			allProcessedModels.entrySet().forEach(modelEntry -> {
-				Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
-				CodegenModel theModel = extractModelClassFromPostProcessAllModelsInput(modelEntry);
+		support_enumCompositions(objs);
 
-				canModelBeGenerated(theModel);
+		// we will scan stuff and add necessary new render template variables
+		allProcessedModels.entrySet().forEach(modelEntry -> {
+			Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
+			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-				if ("CatAndDogResponseClass".equals(theModel.name)) {
-					LOGGER.info("buu");
-				}
+			canModelBeGenerated(theModel);
 
+			// support_enumCombinations(theModel, objs);
+
+			if (modelStyle == ModelStyle.simpleConsistent) {
 				ModelExtraInfo extraInfo = ModelExtraInfo.getExtraInfo(theModel, this);
 
 				modelMap.put(TPLVAR_CTOR_NEEDS_CONSTRUCTOR, extraInfo.needsConstructor());
@@ -686,7 +757,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 					String mappedType = typeMapping.get(property.baseType);
 					if (mappedType != null) {
 						String fullyQualifiedTypeImport = importMapping.get(mappedType);
-						addImportToModelMapOnPostProcessAllModelsHook(modelMap, fullyQualifiedTypeImport);
+						CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry, fullyQualifiedTypeImport);
 
 						LOGGER.info("model {}: injecting import {} - ", theModel.name, fullyQualifiedTypeImport);
 					}
@@ -699,19 +770,19 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 					}
 					if (mappedType != null) {
 						String fullyQualifiedTypeImport = importMapping.get(mappedType);
-						addImportToModelMapOnPostProcessAllModelsHook(modelMap, fullyQualifiedTypeImport);
+						CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry, fullyQualifiedTypeImport);
 					}
 
 				}
 
 				// do we have non-zero argument constructor?
 				if (extraInfo.needsConstructor()) {
-					addImportToModelMapOnPostProcessAllModelsHook(modelMap,
+					CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry,
 							"com.fasterxml.jackson.annotation.JsonCreator");
 				}
+			}
 
-			});
-		}
+		});
 
 		// as a last step let's drop all stuff from the result which we should exclude
 		Map<String, Object> allProcessedModelsResult = new HashMap<>(allProcessedModels);
@@ -725,51 +796,12 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		if (mavenExecutionId != null) {
 			MavenExecutionInfo executionInfo = MavenExecutionInfo.getExecutionInfo(mavenExecutionId);
 			allProcessedModelsResult.entrySet().forEach(modelEntry -> {
-				CodegenModel theModel = extractModelClassFromPostProcessAllModelsInput(modelEntry);
+				CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 				executionInfo.registerModel(theModel.name, theModel);
 			});
 		}
 
 		return allProcessedModelsResult;
-	}
-
-	/**
-	 * AttilaW: The presence of this method is definitely a hack... We really should not manipulate
-	 * imports here but can not find better way now...
-	 */
-	@SuppressWarnings("unchecked")
-	protected void addImportToModelMapOnPostProcessAllModelsHook(Map<String, Object> modelMap,
-			String fullyQualifiedTypeImport) {
-		if (fullyQualifiedTypeImport == null) {
-			// simply skip
-			return;
-		}
-
-		List<Map<String, Object>> imports = (List<Map<String, Object>>) modelMap.get("imports");
-
-		// let's scan them through and add only if not added yet!
-		for (Map<String, Object> importItem : imports) {
-			if (fullyQualifiedTypeImport.equals(importItem.get("import"))) {
-				// already added - skip
-				return;
-			}
-		}
-
-		// let's add!
-		Map<String, Object> stupidImportMap = new HashMap<>();
-		stupidImportMap.put("import", fullyQualifiedTypeImport);
-		imports.add(stupidImportMap);
-	}
-
-	@SuppressWarnings("unchecked")
-	protected CodegenModel extractModelClassFromPostProcessAllModelsInput(
-			Map.Entry<String, Object> postProcessModelEntry) {
-		Map<String, Object> modelMap = (Map<String, Object>) postProcessModelEntry.getValue();
-		List<Map<String, Object>> models = (List<Map<String, Object>>) modelMap.get(CodegenConstants.MODELS);
-		Preconditions.checkState(models.size() == 1,
-				"Oops! It looks model '%s' has more (sub)model entries than expected exact 1",
-				postProcessModelEntry.getKey());
-		return (CodegenModel) models.get(0).get("model");
 	}
 
 	@Override

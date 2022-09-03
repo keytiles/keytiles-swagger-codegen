@@ -17,8 +17,11 @@ import com.keytiles.api.model.test.simpleconsistent.CatAndDogResponseClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.InlineEnumFieldEnum;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
+import com.keytiles.api.model.test.simpleconsistent.SimpleFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.imported.ContainerClass;
+import com.keytiles.api.model.test.simpleconsistent.imported.FruitEnumWithDefault;
 import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
+import com.keytiles.api.model.test.simpleconsistent.imported.PrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableEnumWithDefault;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableMapClass;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableObject;
@@ -65,6 +68,31 @@ public class CheckGeneratedSourcesTest {
 		String dog = "dog";
 		String cat = "cat";
 		new CatAndDogResponseClass(requestReceivedAt, container, dog, cat);
+
+		// ErrorResponseClass errorResp = new ErrorResponseClass();
+		// errorResp.errorCode1 = OneOfErrorResponseClassErrorCode1.CONTAINERID_MISSING;
+		// errorResp.errorCodes2 = new ArrayList<>();
+		// errorResp.errorCodes2.add(AnyOfErrorResponseClassErrorCodes2Items.CONTAINERID_MISSING);
+	}
+
+	@Test
+	public void ArrayDefaultValueSupportTest() {
+
+		// ---- GIVEN
+
+		FruitEnumWithDefault fruitEnumFieldWithDefault = FruitEnumWithDefault.APPLE;
+		PrimeEnum primeEnumField = PrimeEnum.NUMBER_1;
+		SimpleFieldsClass simpleFields = new SimpleFieldsClass(fruitEnumFieldWithDefault, primeEnumField);
+
+		// ---- THEN
+
+		// if a field is nullable and does not have any defaults then we leave it on NULL
+		Assert.assertNull(simpleFields.arrayField);
+
+		Assert.assertEquals(Arrays.asList("a", "b"), simpleFields.arrayFieldWithDefault);
+
+		Assert.assertEquals(new ArrayList<String>(), simpleFields.arrayFieldWithEmptyArrayDefault);
+
 	}
 
 	/**
