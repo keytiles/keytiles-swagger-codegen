@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
@@ -23,6 +25,7 @@ import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
 
 import io.swagger.codegen.v3.CodegenConstants;
 import io.swagger.codegen.v3.CodegenModel;
+import io.swagger.codegen.v3.CodegenProperty;
 import io.swagger.codegen.v3.generators.java.AbstractJavaCodegen;
 
 /**
@@ -34,12 +37,49 @@ import io.swagger.codegen.v3.generators.java.AbstractJavaCodegen;
  */
 public class CodegenUtil {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(CodegenUtil.class);
+
 	public final static String ALLOWEDVALUES_KEY_VALUES = "values";
 	public final static String ALLOWEDVALUES_KEY_ENUMVARS = "enumVars";
 
 	private CodegenUtil() {
 	}
 
+	/**
+	 * Parses the .modelJson into a hashmap if not null - otherwise an empty map is returned
+	 *
+	 * @param theModel
+	 * @return the parsed .modelJson
+	 * @throws IllegalStateException
+	 *             in case parsing has hard-failed
+	 */
+	public static HashMap<String, Object> getParsedModelJson(CodegenModel theModel) {
+		HashMap<String, Object> modelJson = null;
+		if (theModel.modelJson != null) {
+
+			ObjectMapper objectMapper = new ObjectMapper();
+			Exception parsingException = null;
+			try {
+				modelJson = objectMapper.readValue(theModel.modelJson, HashMap.class);
+			} catch (Exception e) {
+				parsingException = e;
+			}
+			Preconditions.checkState(modelJson != null,
+					"Oops it looks we failed to json parse the .modelJson attribute of model '%s'! modelJson\n%s\nlead to error: %s",
+					theModel.name, theModel.modelJson, parsingException);
+		} else {
+			modelJson = new HashMap<>();
+		}
+
+		return modelJson;
+	}
+
+	/**
+	 * Tells if a model is directly declared in the schema or not
+	 *
+	 * @return TRUE if this model is declared in the schema (and not fabricated by codegen) - FALSE
+	 *         otherwise
+	 */
 	public static boolean isModelDirectlyDeclaredInSchema(CodegenModel theModel) {
 		return StringUtils.isNotBlank(theModel.modelJson);
 	}
@@ -49,7 +89,11 @@ public class CodegenUtil {
 	 *         otherwise
 	 */
 	public static boolean isModelComposedEnumModel(CodegenModel theModel) {
-		if (!theModel.isComposedModel) {
+		if (!CodegenBugfixAndEnhanceHelper.isComposedModel(theModel)) {
+			return false;
+		}
+
+		if (theModel.getSubTypes() == null) {
 			return false;
 		}
 
@@ -59,6 +103,7 @@ public class CodegenUtil {
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -80,30 +125,14 @@ public class CodegenUtil {
 	 * @return
 	 */
 	private static boolean isComposedModelUsingInlineEnumDeclaration(CodegenModel theModel) {
-		if (theModel.modelJson != null) {
-
-			ObjectMapper objectMapper = new ObjectMapper();
-			HashMap<String, Object> modelJson = null;
-			Exception parsingException = null;
-			try {
-				modelJson = objectMapper.readValue(theModel.modelJson, HashMap.class);
-			} catch (Exception e) {
-				parsingException = e;
-			}
-			Preconditions.checkState(modelJson != null,
-					"Oops it looks we failed to json parse the .modelJson attribute of model '%s'! modelJson\n%s\nlead to error: %s",
-					theModel.name, theModel.modelJson, parsingException);
-
-			// let's hunt for anyOf, oneOf things!
-
-			for (Map.Entry<String, Object> entry : modelJson.entrySet()) {
-				if ("anyOf".equalsIgnoreCase(entry.getKey()) || "oneOf".equalsIgnoreCase(entry.getKey())
-						|| "allOf".equalsIgnoreCase(entry.getKey())) {
-					// Ok this is a List basically and inside can be HashMaps
-					// but for us for now its enough to check there is no key "enum" in any hashmaps
-					if (Objects.toString(entry.getValue()).toLowerCase().contains("enum=")) {
-						return true;
-					}
+		HashMap<String, Object> modelJson = getParsedModelJson(theModel);
+		for (Map.Entry<String, Object> entry : modelJson.entrySet()) {
+			if ("anyOf".equalsIgnoreCase(entry.getKey()) || "oneOf".equalsIgnoreCase(entry.getKey())
+					|| "allOf".equalsIgnoreCase(entry.getKey())) {
+				// Ok this is a List basically and inside can be HashMaps
+				// but for us for now its enough to check there is no key "enum" in any hashmaps
+				if (Objects.toString(entry.getValue()).toLowerCase().contains("enum=")) {
+					return true;
 				}
 			}
 		}
@@ -391,21 +420,71 @@ public class CodegenUtil {
 		return extractModelClassFromPostProcessAllModelsInput(new SimpleEntry<>(modelClassName, modelEntry));
 	}
 
-	public static void replaceModelInPostProcessAllModelsInput(Map<String, Object> postProcessInputMap,
-			String modelClassName, CodegenModel withModel) {
-		Map<String, Object> origModelMap = (Map<String, Object>) postProcessInputMap.get(modelClassName);
+	/**
+	 * You can invoke this method from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hooks. This
+	 * will replace a model with another one in this i
+	 *
+	 * @param postProcessInputMap
+	 *            Input from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hook
+	 * @param modelClassNameToReplace
+	 *            The existing model which model class you want to replace
+	 * @param withModel
+	 *            With which model
+	 */
+	public static void replaceModelDefinitionInPostProcessAllModelsInput(Map<String, Object> postProcessInputMap,
+			String modelClassNameToReplace, CodegenModel withModel) {
+		Map<String, Object> origModelMap = (Map<String, Object>) postProcessInputMap.get(modelClassNameToReplace);
+		Preconditions.checkArgument(origModelMap != null,
+				"Oops! It looks model '%s' does not exist - replacing of a non-existing model is not possible",
+				modelClassNameToReplace);
 
 		// inputSpec?
 		// imports
 
 		List<Map<String, Object>> models = (List<Map<String, Object>>) origModelMap.get(CodegenConstants.MODELS);
 		Preconditions.checkState(models.size() == 1,
-				"Oops! It looks model '%s' has more (sub)model entries than expected exact 1", modelClassName);
+				"Oops! It looks model '%s' has more (sub)model entries than expected exact 1", modelClassNameToReplace);
 		models.get(0).put("model", withModel);
 
 		if (withModel.getIsEnum()) {
 
 		}
+	}
+
+	private static void replaceTypeReferencesInProperty(CodegenProperty property, String modelClassNameToReplace,
+			String modelClassNameToReplaceWith) {
+		if (modelClassNameToReplace.equals(property.baseType)) {
+			// this is a direct match
+			property.baseType = modelClassNameToReplaceWith;
+		}
+		if (modelClassNameToReplace.equals(property.complexType)) {
+			property.complexType = modelClassNameToReplaceWith;
+		}
+		property.datatype = property.datatype.replace(modelClassNameToReplace, modelClassNameToReplaceWith);
+		property.datatypeWithEnum = property.datatypeWithEnum.replace(modelClassNameToReplace,
+				modelClassNameToReplaceWith);
+	}
+
+	public static void replaceModelReferenceInPostProcessAllModelsInput(Map<String, Object> postProcessInputMap,
+			String modelClassNameToReplace, String modelClassNameToReplaceWith) {
+
+		postProcessInputMap.entrySet().forEach(modelEntry -> {
+			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
+
+			// if ("ErrorResponseClass".equals(theModel.name)) {
+			// LOGGER.info("buu");
+			// }
+
+			for (CodegenProperty property : theModel.allVars) {
+				replaceTypeReferencesInProperty(property, modelClassNameToReplace, modelClassNameToReplaceWith);
+
+				if (property.items != null) {
+					replaceTypeReferencesInProperty(property.items, modelClassNameToReplace,
+							modelClassNameToReplaceWith);
+				}
+			}
+
+		});
 	}
 
 	/**

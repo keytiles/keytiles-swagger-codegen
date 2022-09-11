@@ -9,6 +9,7 @@ import org.apache.commons.io.FilenameUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.keytiles.swagger.codegen.IKeytilesCodegen;
+import com.keytiles.swagger.codegen.error.SchemaValidationException;
 import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
 import com.keytiles.swagger.codegen.helper.debug.PropertyInlineMessages;
 
@@ -25,6 +26,30 @@ import io.swagger.codegen.v3.CodegenProperty;
 public class CodegenBugfixAndEnhanceHelper {
 
 	private CodegenBugfixAndEnhanceHelper() {
+	}
+
+	/**
+	 * For some reason the .isComposedModel property is not set for certain models which are definitely
+	 * a composition of others - so using anyOf/oneOf/allOf in its schema. This method recognizing even
+	 * these as composed models
+	 *
+	 * @param theModel
+	 * @return TRUE if the model is composed model - FALSE otherwise
+	 */
+	public static boolean isComposedModel(CodegenModel theModel) {
+		if (theModel.isComposedModel) {
+			return true;
+		}
+
+		HashMap<String, Object> modelJson = CodegenUtil.getParsedModelJson(theModel);
+		for (Map.Entry<String, Object> entry : modelJson.entrySet()) {
+			if ("anyOf".equalsIgnoreCase(entry.getKey()) || "oneOf".equalsIgnoreCase(entry.getKey())
+					|| "allOf".equalsIgnoreCase(entry.getKey())) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public static void validateOnlySupportedVendorAttributesAreUsedOnModel(IKeytilesCodegen codegen,
@@ -201,4 +226,27 @@ public class CodegenBugfixAndEnhanceHelper {
 		});
 	}
 
+	public static void validateModelsAgainstKnownContradictions(Map<String, CodegenModel> allModels) {
+
+		allModels.entrySet().forEach(modelEntry -> {
+
+			// if ("ExtendedErrorCodesAnyOf".equals(modelEntry.getKey())) {
+			// System.out.println("buuu");
+			// }
+
+			if (isComposedModel(modelEntry.getValue())) {
+				HashMap<String, Object> modelJson = CodegenUtil.getParsedModelJson(modelEntry.getValue());
+				String type = (String) modelJson.get("type");
+				if (type != null && !"object".equalsIgnoreCase(type)) {
+
+					// OK so this is a composed model with a direct 'type' declaration
+					// codegen only works well for type:object declarations
+
+					throw new SchemaValidationException("model '" + modelEntry.getKey()
+							+ "' is a composed model (anyOf, oneOf, allOf) but its definition contains 'type: " + type
+							+ "' declaration - Codegen just works well for 'type: object' compositions. Do you really need that type declaration?");
+				}
+			}
+		});
+	}
 }

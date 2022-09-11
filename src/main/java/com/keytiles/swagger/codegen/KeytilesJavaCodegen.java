@@ -611,6 +611,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		});
 
 		CodegenBugfixAndEnhanceHelper.fixReferredModelAttributesInheritance(allModels);
+		CodegenBugfixAndEnhanceHelper.validateModelsAgainstKnownContradictions(allModels);
 
 	}
 
@@ -639,7 +640,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	 *
 	 * @param objs
 	 */
-	protected void support_enumCompositions(Map<String, Object> objs) {
+	protected Map<String, Object> support_enumCompositions(Map<String, Object> objs) {
 
 		// let's iterate over all entries and check / hunt for enum composition models!
 
@@ -647,25 +648,25 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		Map<String, CodegenModel> replacedEnums = new HashMap<>();
 
 		objs.entrySet().forEach(modelEntry -> {
-			CodegenModel propertyModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
+			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-			if ("ManagementEndpointErrorCodes".equals(propertyModel.name)) {
-				LOGGER.info("buu");
-			}
+			// if ("ContainerResponseClass".equals(theModel.name)) {
+			// LOGGER.info("buu");
+			// }
 
 			CodegenModel joinedEnumModel = null;
 			try {
 				// this can return null - if not appropriate for merging
-				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(propertyModel,
-						addExplanationsToModel);
+				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(theModel, addExplanationsToModel);
 			} catch (Exception e) {
 				throw new IllegalStateException(
-						"Oops! Failed to merge Enum composition in model '" + propertyModel + "': " + e.getMessage());
+						"Oops! Failed to merge Enum composition in model '" + theModel + "': " + e.getMessage());
 			}
 
 			// let's replace the type
 			if (joinedEnumModel != null) {
-				CodegenUtil.replaceModelInPostProcessAllModelsInput(objs, modelEntry.getKey(), joinedEnumModel);
+				CodegenUtil.replaceModelDefinitionInPostProcessAllModelsInput(objs, modelEntry.getKey(),
+						joinedEnumModel);
 				replacedEnums.put(modelEntry.getKey(), joinedEnumModel);
 			}
 		});
@@ -688,6 +689,35 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 					equalsTo);
 		});
 
+		// and finally lets merge enums!
+		// if there are schema-defined enums which are equal to fabricated enums let's remove the fabricated
+		// enums and repoint usage points to the schema-defined ones
+		Map<String, Object> allProcessedModelsResult = new HashMap<>(objs);
+		replacedEnums.entrySet().forEach(modelEntry -> {
+			if (modelEntry.getValue().getBooleanValue(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM)) {
+				Set<String> equalsToEnums = (Set<String>) modelEntry.getValue().getVendorExtensions()
+						.get(IKeytilesCodegen.X_ENUM_EQUALS_TO);
+				if (equalsToEnums != null) {
+					// let's iterate over everyone the enum model is equals to
+					for (String equalsToEnumName : equalsToEnums) {
+						CodegenModel eualsToEnumModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(objs,
+								equalsToEnumName);
+						// if this one is not directly declared then let's merge it
+						if (!eualsToEnumModel.getBooleanValue(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM)) {
+							LOGGER.info("=== replace - enum {} would be removed and replaced with {}",
+									eualsToEnumModel.name, modelEntry.getValue().name);
+
+							CodegenUtil.replaceModelReferenceInPostProcessAllModelsInput(objs, equalsToEnumName,
+									modelEntry.getKey());
+							allProcessedModelsResult.remove(equalsToEnumName);
+						}
+					}
+				}
+
+			}
+		});
+
+		return allProcessedModelsResult;
 	}
 
 	/**
@@ -709,7 +739,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
 		Map<String, Object> allProcessedModels = super.postProcessAllModels(objs);
 
-		support_enumCompositions(objs);
+		allProcessedModels = support_enumCompositions(allProcessedModels);
 
 		// we will scan stuff and add necessary new render template variables
 		allProcessedModels.entrySet().forEach(modelEntry -> {

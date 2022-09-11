@@ -274,19 +274,17 @@ components:
       
     # what about oneOf, allOf ? what to do in that case? maybe do the same...
     ExtendedErrorCodesAnyOf:
-      type: string
       anyOf:
       - $ref: "#/components/schemas/LocalErrorCodes"
       - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
 
     ExtendedErrorCodesOneOf:
-      type: string
       oneOf:
       - $ref: "#/components/schemas/LocalErrorCodes"
       - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
 
 # for now we do not support this style so remove these
-# otherwise model generation would kick an schema exception
+# otherwise model generation would kick a schema exception
 #
 #    ExtendedErrorCodesInlineAnyOf:
 #      type: string
@@ -340,6 +338,8 @@ components:
             - $ref: "#/components/schemas/LocalErrorCodes"
             - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
           nullable: true
+        extendedErrorCodesAnyOfField:
+          $ref: "#/components/schemas/ExtendedErrorCodesAnyOf"
         extendedErrorCodesOneOfField:
           $ref: "#/components/schemas/ExtendedErrorCodesOneOf"
         extendedErrorCodesOneOfArrayField:

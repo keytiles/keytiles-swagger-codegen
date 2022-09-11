@@ -77,6 +77,19 @@ public class ModelInlineMessages {
 		}
 	}
 
+	/**
+	 * You can append a new explanation message to the Class itself.
+	 * <p>
+	 * note: this is just done if the model has an already registered {@link ModelInlineMessages}
+	 * instance in it otherwise this method does nothing
+	 *
+	 * @param model
+	 *            which model?
+	 * @param type
+	 *            what type of message is this?
+	 * @param message
+	 *            your constructor explanation message
+	 */
 	public static void appendToClass(CodegenModel model, ModelMessageType type, String message) {
 		ModelInlineMessages messages = type == ModelMessageType.WARNING ? getOrCreateMessages(model, type)
 				: getMessages(model, type);
