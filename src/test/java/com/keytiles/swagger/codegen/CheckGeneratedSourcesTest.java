@@ -14,6 +14,9 @@ import org.junit.Test;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.keytiles.api.model.test.simpleconsistent.CatAndDogResponseClass;
+import com.keytiles.api.model.test.simpleconsistent.ErrorResponseClass;
+import com.keytiles.api.model.test.simpleconsistent.ExtendedErrorCodesAnyOf;
+import com.keytiles.api.model.test.simpleconsistent.ExtendedErrorCodesOneOf;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.InlineEnumFieldEnum;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
@@ -69,10 +72,35 @@ public class CheckGeneratedSourcesTest {
 		String cat = "cat";
 		new CatAndDogResponseClass(requestReceivedAt, container, dog, cat);
 
-		// ErrorResponseClass errorResp = new ErrorResponseClass();
-		// errorResp.errorCode1 = OneOfErrorResponseClassErrorCode1.CONTAINERID_MISSING;
-		// errorResp.errorCodes2 = new ArrayList<>();
-		// errorResp.errorCodes2.add(AnyOfErrorResponseClassErrorCodes2Items.CONTAINERID_MISSING);
+		// --- the following is checking how enum compositions were generated
+
+		// this must inherit CommonErrorCodes values too
+		ExtendedErrorCodesAnyOf extendedErrorCodesAnyOf = ExtendedErrorCodesAnyOf.valueOf("common_error_1");
+		extendedErrorCodesAnyOf = ExtendedErrorCodesAnyOf.CONTAINERID_MISSING;
+		// and the oneOf version should behave the same
+		ExtendedErrorCodesOneOf extendedErrorCodesOneOf = ExtendedErrorCodesOneOf.valueOf("common_error_1");
+		extendedErrorCodesOneOf = ExtendedErrorCodesOneOf.CONTAINERID_MISSING;
+
+		// now comes the complex type using the above + also defining inline models which should be
+		// optimized out and falling back to the above schema defined things
+		ErrorResponseClass errorResp = new ErrorResponseClass(ExtendedErrorCodesOneOf.valueOf("common_error_1"));
+		// these are direct $ref fields - and the "oneOf" is not nullable so setter is used
+		errorResp.extendedErrorCodesAnyOfField = ExtendedErrorCodesAnyOf.CONTAINERID_MISSING;
+		errorResp.setExtendedErrorCodesOneOfField(ExtendedErrorCodesOneOf.CONTAINERID_MISSING);
+		// array version
+		errorResp.extendedErrorCodesOneOfArrayField = new ArrayList<ExtendedErrorCodesOneOf>();
+
+		// and here comes the inplace fields (array and direct) - which should fall back to schema defined
+		// versions (see KeytilesJavaCodegen.support_enumCompositions(Map<String, Object>) last step, where
+		// fabricated types are searched for equality and replaced)
+		errorResp.errorCodeArrayInplaceOneOf = new ArrayList<ExtendedErrorCodesOneOf>();
+		// note: this one might look strange as the "anyOf" field falls back to "oneOf" type but this is
+		// just the consequence of enum "equals" search
+		errorResp.errorCodeArrayInplaceAnyOf = new ArrayList<ExtendedErrorCodesOneOf>();
+
+		errorResp.errorCodeInplaceOneOf = ExtendedErrorCodesOneOf.ERROR_CODE_1;
+		// this one is the same reason as .errorCodeArrayInplaceAnyOf
+		errorResp.errorCodeInplaceAnyOf = ExtendedErrorCodesOneOf.ERROR_CODE_1;
 	}
 
 	@Test

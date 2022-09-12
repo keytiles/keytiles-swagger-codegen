@@ -401,4 +401,39 @@ See section [Property datatypes - using primitive types?](#using_primitive_types
 
 # <a name="enum_composition"></a>Support for Enum compositions
 
-TO DO!
+Keytiles codegen supports some sort of Enum compositions which original Codegen so far does not support. There are many threads and tickets around Codegen project where people are raising this point e.g.
+ * https://github.com/OAI/OpenAPI-Specification/issues/1552
+ * https://github.com/swagger-api/swagger-codegen/issues/11821
+ 
+This is a feature we definitely need because of machine readable error codes which we wanted to represent with Enums for schema readability purposes (instead of just dropping in a String field).
+
+So we tried to pick up a declaration format which maybe in the future will be likely supported by the Codegen project itself. We have chosen to support the composition of Enums (using `oneOf`, `anyOf` keywords) which will be recognized by the codegen and a merged (union) Enum class will be generated. You can declare a compposed Enum like this:
+
+```
+BaseEnum:
+  type: string
+  enum:
+  - base_1
+  - base_2
+  
+MoreEnum:
+  type: string
+  enum:
+  - more_1
+  - more_2
+  
+ComposedEnumWithOneOf:
+  oneOf:
+  - $ref: "#/components/schemas/BaseEnum"
+  - $ref: "#/components/schemas/MoreEnum"
+
+ComposedEnumWithAnyOf:
+  anyOf:
+  - $ref: "#/components/schemas/BaseEnum"
+  - $ref: "#/components/schemas/MoreEnum"
+
+```
+
+As you can see you can use both `oneOf` and `anyOf` to create the composition. In the above cases both `ComposedEnumWithOneOf` and `ComposedEnumWithAnyOf` will be recognized as composition of enums and the generated Enum class would contain all values merged from `BaseEnum` and `MoreEnum` Enums.
+
+**note:** you can not use `allOf` keyword - that would lead to a SchemaValidationException. The reason behind this is that `allOf` is typically used (and compiled into) `extends` keyword while working with objects in OpenApi. But Enum can not be extended in Java so we decided not to support the `allOf` keyword for this.

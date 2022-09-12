@@ -276,7 +276,8 @@ components:
     ExtendedErrorCodesAnyOf:
       anyOf:
       - $ref: "#/components/schemas/LocalErrorCodes"
-      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+      nullable: true 
 
     ExtendedErrorCodesOneOf:
       oneOf:
