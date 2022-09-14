@@ -356,38 +356,14 @@ components:
 #          items:
 #            $ref: "#/components/schemas/ExtendedErrorCodesInlineAnyOf"
 #          nullable: true
-      
-
   
-    ManagementEndpointLocalErrorCodes:
-      type: string
-      enum:
-      - containerId_missing
-      - containerId_invalid
-      - containerData_missing
-      - containerData_invalid
-      - containerData_jsonDecodeFailed
-      - userIdTerm_missing
-      - userIdTerm_invalid
-      - userData_missing
-      - userData_invalid
-      - userData_jsonDecodeFailed
-      - passwordData_missing
-      - passwordData_invalid
-      - credentials
-
-    ManagementEndpointErrorCodes:
-      oneOf:
-      - $ref: "#/components/schemas/ManagementEndpointLocalErrorCodes"
-      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
-  
-    ManagementEndpointProblemClass:
-      type: object
-      properties:
-        errorCodes:
-          type: array
-          items:
-            $ref: "#/components/schemas/ManagementEndpointErrorCodes"
+        # lets also quick test HashMap usage
+        extendedErrorCodesAnyOfMapField:
+          type: object
           nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/ExtendedErrorCodesAnyOf"
+
+
           
       

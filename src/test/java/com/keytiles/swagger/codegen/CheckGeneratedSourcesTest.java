@@ -101,6 +101,9 @@ public class CheckGeneratedSourcesTest {
 		errorResp.errorCodeInplaceOneOf = ExtendedErrorCodesOneOf.ERROR_CODE_1;
 		// this one is the same reason as .errorCodeArrayInplaceAnyOf
 		errorResp.errorCodeInplaceAnyOf = ExtendedErrorCodesOneOf.ERROR_CODE_1;
+
+		// testing the Map field
+		errorResp.extendedErrorCodesAnyOfMapField = new HashMap<String, ExtendedErrorCodesAnyOf>();
 	}
 
 	@Test

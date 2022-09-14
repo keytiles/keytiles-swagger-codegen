@@ -35,6 +35,7 @@ import io.swagger.codegen.v3.CliOption;
 import io.swagger.codegen.v3.CodegenModel;
 import io.swagger.codegen.v3.CodegenProperty;
 import io.swagger.codegen.v3.DefaultGenerator;
+import io.swagger.codegen.v3.generators.java.AbstractJavaCodegen;
 import io.swagger.codegen.v3.generators.java.JavaClientCodegen;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
@@ -318,7 +319,33 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		support_usePrimitiveTypesIfPossible(model, property);
 
 		support_arrayDefaultValue(model, property);
+		support_mapDefaultValue(model, property);
 
+	}
+
+	protected void support_mapDefaultValue(CodegenModel model, CodegenProperty property) {
+		if (!property.getIsMapContainer()) {
+			// we have nothing to do - not an array
+			return;
+		}
+		// does it have a default set in schema?
+		if (!property.jsonSchema.contains("\"default\"")) {
+
+			// OK this array does not have any default items
+			// if the property is nullable it does not make sense to create an ArrayList object so lets null it
+			// out
+			if (property.nullable) {
+				property.defaultValue = "null";
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"this map does not have default and nullable - so let's keep it on NULL then");
+			}
+
+			return;
+		} else {
+			throw new SchemaValidationException("The '" + model.name + "." + property.baseName
+					+ "' translates into a Map and you added 'default' value to that. This is not supported well so please remove the default value!");
+		}
 	}
 
 	/**
@@ -639,6 +666,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	 * .canModelBeGenerated()) compositions of Enums and merging/replacing them with one Enum
 	 *
 	 * @param objs
+	 *            the input of the {@link AbstractJavaCodegen#postProcessAllModels(Map)} method
+	 * @return modified map - it is possible some models (fabricated) are removed from the generation
 	 */
 	protected Map<String, Object> support_enumCompositions(Map<String, Object> objs) {
 
@@ -650,9 +679,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		objs.entrySet().forEach(modelEntry -> {
 			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-			// if ("ContainerResponseClass".equals(theModel.name)) {
-			// LOGGER.info("buu");
-			// }
+			if ("ErrorResponseClass".equals(theModel.name)) {
+				LOGGER.info("buu");
+			}
 
 			CodegenModel joinedEnumModel = null;
 			try {
@@ -685,8 +714,9 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 			boolean schemaDefined = modelEntry.getValue()
 					.getBooleanValue(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM);
-			LOGGER.info("=== enum {} (schema-defined: {}): equals to: {}", modelEntry.getKey(), schemaDefined,
-					equalsTo);
+			// LOGGER.info("=== enum {} (schema-defined: {}): equals to: {}", modelEntry.getKey(),
+			// schemaDefined,
+			// equalsTo);
 		});
 
 		// and finally lets merge enums!
@@ -702,13 +732,16 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 					for (String equalsToEnumName : equalsToEnums) {
 						CodegenModel eualsToEnumModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(objs,
 								equalsToEnumName);
-						// if this one is not directly declared then let's merge it
+						// if this one is not directly declared then let's replace it with the directly declared (and
+						// equals) one!
 						if (!eualsToEnumModel.getBooleanValue(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM)) {
-							LOGGER.info("=== replace - enum {} would be removed and replaced with {}",
+							LOGGER.info(
+									"=== replace - fabricated (by Codegen) enum '{}' will be removed and replaced with '{}' as they are equal",
 									eualsToEnumModel.name, modelEntry.getValue().name);
 
 							CodegenUtil.replaceModelReferenceInPostProcessAllModelsInput(objs, equalsToEnumName,
-									modelEntry.getKey());
+									modelEntry.getKey(), "enum '" + modelEntry.getKey()
+											+ "' is defined in the schema directly and it equals to the one you defined inline - so field is reusing that one instead of a fabricated type");
 							allProcessedModelsResult.remove(equalsToEnumName);
 						}
 					}

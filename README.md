@@ -29,6 +29,7 @@ The following are happening globally:
 * handling of referred in (using `$ref`) objects/enums is enhanced - now the attributes of the referred object (if has any) like `nullable` or `default` is considered and not just simply ignored - in line with [OpenApi v3 spec, "$ref and Sibling Elements" section](https://swagger.io/docs/specification/using-ref)
 * schema validation is enhanced so model generation will break in cases which does not make any sense, e.g. if a) someone writes a schema in which he tries to extend an Enum (using `allOf`) or b) one makes an object property `mandatory=true` and also assignd a `default` value (as this is contradicting information due to OpenApi spec)
 * however extending an Enum is not possible (in Java for sure) we added support for using composition of Enums - see [Support for Enum composition](#enum_composition)
+* support id added to give Array fields default value - see [Support for Array fields default value](#array_default)
 
 
 ### <a name="option_modelstyle"></a>option 'modelStyle'
@@ -399,6 +400,33 @@ applicable on elements: object properties
 
 See section [Property datatypes - using primitive types?](#using_primitive_types) for more details
 
+
+# <a name="array_default"></a>Support for Array fields default value
+
+OpenApi spec allows you to write something like this:
+
+```
+MyObject:
+  type: object
+  properties:
+    arrayFieldWithDefaultValue:
+      type: array
+      default: ['a','b']
+      items:
+        type: string
+```
+
+but in original Codegen the `default` value does nothing.
+
+In Keytiles codegen we solved this so the above will result in this in the generated model:
+
+```
+@JsonProperty("arrayFieldWithDefaultValue")
+private List<String> arrayFieldWithDefaultValue = new ArrayList<>(Arrays.asList("a","b"));
+```
+
+**Limitation:** the above currently works only for simple types like String, Integer, etc - complex objects as items are not supported here. The simple reason for this is that in the `default: [...]` part its not really possible to describe a complex object easily (in JSON representation? or how?)
+
 # <a name="enum_composition"></a>Support for Enum compositions
 
 Keytiles codegen supports some sort of Enum compositions which original Codegen so far does not support. There are many threads and tickets around Codegen project where people are raising this point e.g.
@@ -437,3 +465,58 @@ ComposedEnumWithAnyOf:
 As you can see you can use both `oneOf` and `anyOf` to create the composition. In the above cases both `ComposedEnumWithOneOf` and `ComposedEnumWithAnyOf` will be recognized as composition of enums and the generated Enum class would contain all values merged from `BaseEnum` and `MoreEnum` Enums.
 
 **note:** you can not use `allOf` keyword - that would lead to a SchemaValidationException. The reason behind this is that `allOf` is typically used (and compiled into) `extends` keyword while working with objects in OpenApi. But Enum can not be extended in Java so we decided not to support the `allOf` keyword for this.
+
+The above also works for arrays / maps:
+
+```
+# let's create an object which is using the above types!
+
+MyObject:
+  type: object
+  properties:
+    composedEnumWithOneOfArrayField:
+      type: array
+      items:
+        $ref: "#/components/schemas/ComposedEnumWithOneOf"
+    composedEnumWithAnyOfMapField:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/ComposedEnumWithAnyOf"
+  
+```
+
+And regarding Array fields even the inline composition is recognized and handled (for Map fields not because Codegen does not recognize what we use as trigger point in these cases - and for now we did not bother with adding support of this recognition)
+
+
+```
+# let's create an object which is using the above types!
+
+MyObject:
+  type: object
+  properties:
+    composedEnumWithOneOfArrayField:
+      type: array
+      items:
+        $ref: "#/components/schemas/ComposedEnumWithOneOf"
+    composedEnumWithAnyOfMapField:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/ComposedEnumWithAnyOf"
+
+	 # let's add this - we describe inline what we need
+    inlineComposedEnumWithOneOfArrayField:
+      type: array
+      items:
+		  anyOf:
+		  - $ref: "#/components/schemas/BaseEnum"
+		  - $ref: "#/components/schemas/MoreEnum"
+  
+```
+
+**note:** If you would generate the above model actually the `inlineComposedEnumWithOneOfArrayField` would recognize that "hmmm... there is already a declared Enum in the schema (ComposedEnumWithAnyOf) which is totally the same as the inline composition - so let's use that instead of fabricating a new type!". So the generated model would look like this in Java:
+
+```
+@JsonProperty("inlineComposedEnumWithOneOfArrayField")
+private List<ComposedEnumWithAnyOf> inlineComposedEnumWithOneOfArrayField = new ArrayList<>();
+
+```

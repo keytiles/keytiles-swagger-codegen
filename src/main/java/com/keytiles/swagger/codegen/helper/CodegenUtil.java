@@ -22,6 +22,7 @@ import com.keytiles.swagger.codegen.IKeytilesCodegen;
 import com.keytiles.swagger.codegen.error.SchemaValidationException;
 import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
 import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
+import com.keytiles.swagger.codegen.helper.debug.PropertyInlineMessages;
 
 import io.swagger.codegen.v3.CodegenConstants;
 import io.swagger.codegen.v3.CodegenModel;
@@ -421,8 +422,9 @@ public class CodegenUtil {
 	}
 
 	/**
-	 * You can invoke this method from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hooks. This
-	 * will replace a model with another one in this i
+	 * This method is replacing a model definition (in place) with another one which you pass in. So the
+	 * name of the model is not changed - only the content (well, the definition) is replaced. You can
+	 * invoke this method from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hooks.
 	 *
 	 * @param postProcessInputMap
 	 *            Input from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hook
@@ -451,22 +453,55 @@ public class CodegenUtil {
 		}
 	}
 
-	private static void replaceTypeReferencesInProperty(CodegenProperty property, String modelClassNameToReplace,
+	private static boolean replaceTypeReferencesInProperty(CodegenProperty property, String modelClassNameToReplace,
 			String modelClassNameToReplaceWith) {
+		boolean wasActioned = false;
+
 		if (modelClassNameToReplace.equals(property.baseType)) {
 			// this is a direct match
 			property.baseType = modelClassNameToReplaceWith;
+			wasActioned = true;
 		}
 		if (modelClassNameToReplace.equals(property.complexType)) {
 			property.complexType = modelClassNameToReplaceWith;
+			wasActioned = true;
 		}
-		property.datatype = property.datatype.replace(modelClassNameToReplace, modelClassNameToReplaceWith);
-		property.datatypeWithEnum = property.datatypeWithEnum.replace(modelClassNameToReplace,
-				modelClassNameToReplaceWith);
+
+		if (property.datatype != null && property.datatype.contains(modelClassNameToReplace)) {
+			property.datatype = property.datatype.replace(modelClassNameToReplace, modelClassNameToReplaceWith);
+			wasActioned = true;
+		}
+
+		if (property.datatypeWithEnum != null && property.datatypeWithEnum.contains(modelClassNameToReplace)) {
+			property.datatypeWithEnum = property.datatypeWithEnum.replace(modelClassNameToReplace,
+					modelClassNameToReplaceWith);
+			wasActioned = true;
+		}
+
+		return wasActioned;
 	}
 
+	/**
+	 * This method can be used if you want to replace references of a model with another. You can invoke
+	 * this method from {@link AbstractJavaCodegen#postProcessAllModels(Map)} hooks.
+	 * <p>
+	 * The method scans through all models and all of their properties and whichever property is using
+	 * modelClassNameToReplace will be repointed to use modelClassNameToReplaceWith instead. This means
+	 * that after this is done you can even remove the modelClassNameToReplace model from the
+	 * postProcessInputMap map if you like
+	 *
+	 * @param postProcessInputMap
+	 *            the input of the {@link AbstractJavaCodegen#postProcessAllModels(Map)} method
+	 * @param modelClassNameToReplace
+	 *            name of the model which references you want to be replaced
+	 * @param modelClassNameToReplaceWith
+	 *            with which model reference (name)
+	 * @param replacingReason
+	 *            explanation of why this replacement was done? this will be added as a Generator
+	 *            comment message to the property to create visibility
+	 */
 	public static void replaceModelReferenceInPostProcessAllModelsInput(Map<String, Object> postProcessInputMap,
-			String modelClassNameToReplace, String modelClassNameToReplaceWith) {
+			String modelClassNameToReplace, String modelClassNameToReplaceWith, String replacingReason) {
 
 		postProcessInputMap.entrySet().forEach(modelEntry -> {
 			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
@@ -476,11 +511,17 @@ public class CodegenUtil {
 			// }
 
 			for (CodegenProperty property : theModel.allVars) {
-				replaceTypeReferencesInProperty(property, modelClassNameToReplace, modelClassNameToReplaceWith);
+				boolean wasActioned = replaceTypeReferencesInProperty(property, modelClassNameToReplace,
+						modelClassNameToReplaceWith);
 
 				if (property.items != null) {
 					replaceTypeReferencesInProperty(property.items, modelClassNameToReplace,
 							modelClassNameToReplaceWith);
+				}
+
+				// let's make the change visible!
+				if (wasActioned) {
+					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION, replacingReason);
 				}
 			}
 
