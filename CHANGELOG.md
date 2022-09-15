@@ -30,6 +30,7 @@ This means that:
  * Introduced validation which makes sure only supported `x-keytiles-` vendor attributes are present in the schema - otherwise build will fail. This helps in future releases to detect accidental leftovers on schema files of `x-keytiles-` attributes which were deprecated and removed in the meantime can not be overlooked
  * Added support for composition of Enums - see README for more details
  * Added KeytilesJavaCodegen.support_mapDefaultValue(CodegenModel, CodegenProperty) method - which makes the default '= null' in case the map field is nullable (instead of creating a new HashMap<>() instance)
+ * pojo.mustache was modified to add (back) helper methods to add/remove values to/from non-readonly array and map fields. The add methods are doing a null check and initiating the container field in case its null.
 
 ## Bugfixes
  * During inheritance when Superclass has a constructor sometimes the Subclass did not pick up imports needed by Superclass - that lead to generated model compilation problems. This is now fixed (or at least better). Also added model structure to tested OpenApi schemas which is checking this works.

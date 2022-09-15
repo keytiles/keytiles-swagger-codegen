@@ -289,6 +289,50 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/isReadOnly}}
 
 {{/privateFields}}
+
+{{#vars}}
+{{^isReadOnly}}
+  {{#isListContainer}}
+
+  // @Generator: builder style helper method to add values to not-readonly array field
+  public {{classname}} add{{nameInCamelCase}}Item({{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} == null) {
+ 		this.{{name}} = new ArrayList<>();
+    }
+    this.{{name}}.add({{name}}Item);
+    return this;
+  }
+
+  // @Generator: builder style helper method to remove values from not-readonly array field
+  public {{classname}} remove{{nameInCamelCase}}Item({{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} != null) {
+    	this.{{name}}.remove({{name}}Item);
+    }
+    return this;
+  }
+  {{/isListContainer}}
+  {{#isMapContainer}}
+
+  // @Generator: builder style helper method to put values into not-readonly map field
+  public {{classname}} put{{nameInCamelCase}}Item(String key, {{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} == null) {
+		this.{{name}} = new HashMap<>();
+    }
+    this.{{name}}.put(key, {{name}}Item);
+    return this;
+  }
+
+  // @Generator: builder style helper method to remove values from not-readonly map field
+  public {{classname}} remove{{nameInCamelCase}}Item(String key) {
+    if (this.{{name}} != null) {
+    	this.{{name}}.remove(key);
+    }
+    return this;
+  }
+  {{/isMapContainer}}
+{{/isReadOnly}}
+{{/vars}}
+
 {{^supportJava6}}
   @Override
   public boolean equals(java.lang.Object o) {
