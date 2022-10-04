@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.1
 
 info:
   version: '1.0'
@@ -107,6 +107,11 @@ components:
       properties:
         dog:
           type: string
+
+    # ===============
+    # for testing enum compositions
+    # ===============
+
           
     # This is to test imported enumerations          
     CommonErrorCodes:
@@ -115,4 +120,7 @@ components:
       - common_error_1
       - common_error_2
     
+    
+    
+      
       

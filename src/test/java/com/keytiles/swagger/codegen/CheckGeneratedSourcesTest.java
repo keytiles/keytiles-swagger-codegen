@@ -5,7 +5,6 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
@@ -22,9 +21,13 @@ import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.Inlin
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
 import com.keytiles.api.model.test.simpleconsistent.SimpleFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.imported.ContainerClass;
-import com.keytiles.api.model.test.simpleconsistent.imported.FruitEnumWithDefault;
 import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.imported.PrimeEnum;
+import com.keytiles.api.model.test.simpleconsistent.prop_overrides.BaseClass;
+import com.keytiles.api.model.test.simpleconsistent.prop_overrides.ExtendedFieldClass;
+import com.keytiles.api.model.test.simpleconsistent.prop_overrides.FieldClass;
+import com.keytiles.api.model.test.simpleconsistent.prop_overrides.NullableExtendedFieldClass;
+import com.keytiles.api.model.test.simpleconsistent.prop_overrides.SubClass;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableEnumWithDefault;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableMapClass;
 import com.keytiles.api.model.test.simpleconsistent.ref_attribute_inheritance.ReferredNullableObject;
@@ -49,12 +52,11 @@ public class CheckGeneratedSourcesTest {
 		Double doubleField = 5d;
 		InlineEnumFieldEnum inlineEnumField = InlineEnumFieldEnum.OK;
 		NonNullablePrimeEnum primeEnumField = NonNullablePrimeEnum.NUMBER_11;
-		List<String> arrayField = new ArrayList<>();
 		NonNullableFieldsClassInlineLangObjectField inlineLangObjectField = new NonNullableFieldsClassInlineLangObjectField(
 				5, "langcode", "label");
 
 		NonNullableFieldsClass nonNullableFieldsClass = new NonNullableFieldsClass(longField, doubleField,
-				inlineEnumField, primeEnumField, arrayField, inlineLangObjectField);
+				inlineEnumField, primeEnumField, inlineLangObjectField);
 
 		Assert.assertEquals(new ArrayList<>(Arrays.asList("a", "b")),
 				nonNullableFieldsClass.getArrayFieldWithDefault());
@@ -111,9 +113,8 @@ public class CheckGeneratedSourcesTest {
 
 		// ---- GIVEN
 
-		FruitEnumWithDefault fruitEnumFieldWithDefault = FruitEnumWithDefault.APPLE;
 		PrimeEnum primeEnumField = PrimeEnum.NUMBER_1;
-		SimpleFieldsClass simpleFields = new SimpleFieldsClass(fruitEnumFieldWithDefault, primeEnumField);
+		SimpleFieldsClass simpleFields = new SimpleFieldsClass(primeEnumField);
 
 		// ---- THEN
 
@@ -190,6 +191,25 @@ public class CheckGeneratedSourcesTest {
 		JsonInclude annotation = fields.get("referredNullableMapOnlyNonDefaultField").getAnnotation(JsonInclude.class);
 		Assert.assertNotNull(annotation);
 		Assert.assertEquals(Include.NON_DEFAULT, annotation.value());
+
+	}
+
+	@Test
+	public void checkPropertyOverrides() {
+
+		int requestReceivedAt = 0;
+		FieldClass basePrivateDirectOverridenField = new FieldClass();
+		FieldClass basePrivateMoreFarOverridenField = new FieldClass();
+
+		BaseClass baseClass = new BaseClass(requestReceivedAt, basePrivateDirectOverridenField,
+				basePrivateMoreFarOverridenField);
+
+		ExtendedFieldClass subPrivateDirectOverridenField = new ExtendedFieldClass();
+		ExtendedFieldClass subPrivateMoreFarOverridenField = new ExtendedFieldClass();
+		NullableExtendedFieldClass subPublicDirectOverridenField = new NullableExtendedFieldClass();
+
+		SubClass subClass = new SubClass(requestReceivedAt, subPrivateMoreFarOverridenField, 0,
+				subPrivateDirectOverridenField, subPublicDirectOverridenField);
 
 	}
 

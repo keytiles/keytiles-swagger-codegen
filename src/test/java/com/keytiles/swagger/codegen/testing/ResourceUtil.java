@@ -1,6 +1,8 @@
-package com.keytiles.swagger.codegen;
+package com.keytiles.swagger.codegen.testing;
 
+import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
 import com.google.common.io.Resources;
@@ -33,6 +35,15 @@ public class ResourceUtil {
 			path = path.substring(1);
 		}
 		return path;
+	}
+
+	public static String loadResourceTextFileContent(String pathOnClasspath) {
+		URL url = Resources.getResource(pathOnClasspath);
+		try {
+			return Resources.toString(url, Charset.forName("utf-8"));
+		} catch (IOException e) {
+			throw new RuntimeException("failed to load text file content '" + pathOnClasspath + "'", e);
+		}
 	}
 
 }

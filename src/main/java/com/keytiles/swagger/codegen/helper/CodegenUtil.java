@@ -3,13 +3,17 @@ package com.keytiles.swagger.codegen.helper;
 import java.lang.reflect.Field;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+
+import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -19,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.keytiles.swagger.codegen.IKeytilesCodegen;
+import com.keytiles.swagger.codegen.IKeytilesCodegen.ModelState;
 import com.keytiles.swagger.codegen.error.SchemaValidationException;
 import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
 import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
@@ -44,6 +49,26 @@ public class CodegenUtil {
 	public final static String ALLOWEDVALUES_KEY_ENUMVARS = "enumVars";
 
 	private CodegenUtil() {
+	}
+
+	/**
+	 * Checks if the given model is at least on this state
+	 *
+	 * @param model
+	 * @param atLeastThisState
+	 */
+	public static void validateModelState(CodegenModel model, ModelState atLeastThisState) {
+		ModelState modelState = (ModelState) model.vendorExtensions.get(IKeytilesCodegen.X_MODEL_STATE);
+		if (modelState == null) {
+			throw new IllegalStateException(
+					"Oops! Something is wrong with model '" + model + "'... The state stored in '"
+							+ IKeytilesCodegen.X_MODEL_STATE + "' is not present... This is definitely codegen bug!");
+		}
+		if (modelState.getLevel() < atLeastThisState.getLevel()) {
+			throw new IllegalStateException("Oops! You try to do something too early! The model '" + model
+					+ "' is not in the expected '" + atLeastThisState + "' state yet but just in '" + modelState
+					+ "' state! This is definitely codegen bug!");
+		}
 	}
 
 	/**
@@ -76,13 +101,419 @@ public class CodegenUtil {
 	}
 
 	/**
-	 * Tells if a model is directly declared in the schema or not
+	 * Scans the given collection of properties searching for a property by its name.
 	 *
-	 * @return TRUE if this model is declared in the schema (and not fabricated by codegen) - FALSE
-	 *         otherwise
+	 * @param properties
+	 *            the collection of props
+	 * @param propertyName
+	 *            the name of the prop we are searching for
+	 * @return the property if it is found in the collection - NULL if not
 	 */
-	public static boolean isModelDirectlyDeclaredInSchema(CodegenModel theModel) {
-		return StringUtils.isNotBlank(theModel.modelJson);
+	public static CodegenProperty getPropertyByName(Collection<CodegenProperty> properties, String propertyName) {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+		Preconditions.checkArgument(propertyName != null, "'propertyName' argument was NULL which is invalid here");
+
+		for (CodegenProperty prop : properties) {
+			if (prop.name.equals(propertyName)) {
+				return prop;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Scans the given collection of properties searching for a property by its baseName. This is the
+	 * name it is defined in the schema.
+	 *
+	 * @param properties
+	 *            the collection of props
+	 * @param propertyBaseName
+	 *            the name of the prop in the schema we are searching for
+	 * @return the property if it is found in the collection - NULL if not
+	 */
+	public static CodegenProperty getPropertyByBaseName(Collection<CodegenProperty> properties,
+			String propertyBaseName) {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+		Preconditions.checkArgument(propertyBaseName != null,
+				"'propertyBaseName' argument was NULL which is invalid here");
+
+		for (CodegenProperty prop : properties) {
+			if (prop.baseName.equals(propertyBaseName)) {
+				return prop;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @return the property with the given name from the model - NULL if there is no property with this
+	 *         name
+	 */
+	public static CodegenProperty getPropertyByName(CodegenModel model, String propertyName) {
+		Preconditions.checkArgument(model != null, "'model' argument was NULL which is invalid here");
+		return getPropertyByName(model.vars, propertyName);
+	}
+
+	/**
+	 * @return the property with the given schema-name (baseName) from the model - NULL if there is no
+	 *         property with this name
+	 */
+	public static CodegenProperty getPropertyByBaseName(CodegenModel model, String propertyBaseName) {
+		Preconditions.checkArgument(model != null, "'model' argument was NULL which is invalid here");
+		return getPropertyByBaseName(model.vars, propertyBaseName);
+	}
+
+	/**
+	 * Takes a list of properties and if there is property in it with the given name then it will be
+	 * replaced with the given property at the same place. So the order of properties in the returned
+	 * list will be the same.
+	 * <p>
+	 * note: the assumption is that there is just one property (max) in the list with the given name. If
+	 * another one is found the method will fail
+	 *
+	 * @param properties
+	 *            the list to scan through
+	 * @param propertyName
+	 *            the name of the property to be replaced
+	 * @param replaceWith
+	 *            the property to replace with - if NULL then the property will be simply removed
+	 * @return a new list of properties in which the replacement is done
+	 * @throws IllegalArgumentException
+	 *             if property with the given name is found more than once in the list
+	 */
+	public static List<CodegenProperty> replacePropertyByName(List<CodegenProperty> properties, String propertyName,
+			CodegenProperty replaceWith) throws IllegalArgumentException {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+		Preconditions.checkArgument(propertyName != null, "'propertyName' argument was NULL which is invalid here");
+
+		List<CodegenProperty> result = new ArrayList<>(properties.size());
+
+		boolean oneFound = false;
+		for (CodegenProperty prop : properties) {
+			if (prop.name.equals(propertyName)) {
+				// only one replacement is allowed
+				Preconditions.checkArgument(oneFound == false,
+						"There are multiple properties with name '%s' in the collection - this is against the expectations!",
+						propertyName);
+				oneFound = true;
+
+				if (replaceWith != null) {
+					result.add(replaceWith);
+				}
+			} else {
+				result.add(prop);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Takes a list of properties and if there is property in it with the given schema-name (baseName)
+	 * then it will be replaced with the given property at the same place. So the order of properties in
+	 * the returned list will be the same.
+	 * <p>
+	 * note: the assumption is that there is just one property (max) in the list with the given name. If
+	 * another one is found the method will fail
+	 *
+	 * @param properties
+	 *            the list to scan through
+	 * @param propertyBaseName
+	 *            the schema-name of the property to be replaced
+	 * @param replaceWith
+	 *            the property to replace with - if NULL then the property will be simply removed
+	 * @return a new list of properties in which the replacement is done
+	 * @throws IllegalArgumentException
+	 *             if property with the given name is found more than once in the list
+	 */
+	public static List<CodegenProperty> replacePropertyByBaseName(List<CodegenProperty> properties,
+			String propertyBaseName, @Nullable CodegenProperty replaceWith) throws IllegalArgumentException {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+		Preconditions.checkArgument(propertyBaseName != null,
+				"'propertyBaseName' argument was NULL which is invalid here");
+
+		List<CodegenProperty> result = new ArrayList<>(properties.size());
+
+		boolean oneFound = false;
+		for (CodegenProperty prop : properties) {
+			if (prop.baseName.equals(propertyBaseName)) {
+				// only one replacement is allowed
+				Preconditions.checkArgument(oneFound == false,
+						"There are multiple properties with baseName '%s' in the collection - this is against the expectations!",
+						propertyBaseName);
+				oneFound = true;
+
+				if (replaceWith != null) {
+					result.add(replaceWith);
+				}
+			} else {
+				result.add(prop);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Comfort wrapper around {@link #replacePropertyByName(List, String, CodegenProperty)} - this one
+	 * takes not a list but a set (maintained order)
+	 */
+	public static LinkedHashSet<CodegenProperty> replacePropertyByName(Set<CodegenProperty> properties,
+			String propertyName, @Nullable CodegenProperty replaceWith) throws IllegalArgumentException {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+
+		List<CodegenProperty> list = new ArrayList<>(properties);
+		LinkedHashSet<CodegenProperty> result = new LinkedHashSet<>(
+				replacePropertyByName(list, propertyName, replaceWith));
+		return result;
+	}
+
+	/**
+	 * Comfort wrapper around {@link #replacePropertyByBaseName(List, String, CodegenProperty)} - this
+	 * one takes not a list but a set (maintained order)
+	 */
+	public static LinkedHashSet<CodegenProperty> replacePropertyByBaseName(Set<CodegenProperty> properties,
+			String propertyBaseName, @Nullable CodegenProperty replaceWith) throws IllegalArgumentException {
+		Preconditions.checkArgument(properties != null, "'properties' argument was NULL which is invalid here");
+
+		List<CodegenProperty> list = new ArrayList<>(properties);
+		LinkedHashSet<CodegenProperty> result = new LinkedHashSet<>(
+				replacePropertyByBaseName(list, propertyBaseName, replaceWith));
+		return result;
+	}
+
+	/**
+	 * Removes a property with the given name from the collection. This method is changing the
+	 * collection. If you want the param collection unchanged, and prefer to get back a copy instead,
+	 * see {@link #replacePropertyByName(LinkedHashSet, String, CodegenProperty)} or
+	 * {@link #replacePropertyByName(List, String, CodegenProperty)} invoking with replaceWith=NULL!
+	 *
+	 * @param properties
+	 *            the collection of props
+	 * @param propertyName
+	 *            name of the prop to remove
+	 * @return the property which was removed or NULL if there was no prop with this name
+	 */
+	public static CodegenProperty removePropertyByName(Collection<CodegenProperty> properties, String propertyName)
+			throws IllegalArgumentException {
+		CodegenProperty prop = getPropertyByName(properties, propertyName);
+		if (prop != null) {
+			properties.remove(prop);
+		}
+		return prop;
+	}
+
+	/**
+	 * Removes a property with the given schema-name (baseName) from the collection. This method is
+	 * changing the collection. If you want the param collection unchanged, and prefer to get back a
+	 * copy instead, see {@link #replacePropertyByBaseName(LinkedHashSet, String, CodegenProperty)} or
+	 * {@link #replacePropertyByBaseName(List, String, CodegenProperty)} invoking with replaceWith=NULL!
+	 *
+	 * @param properties
+	 *            the collection of props
+	 * @param propertyBaseName
+	 *            name of the prop to remove
+	 * @return the property which was removed or NULL if there was no prop with this name
+	 */
+	public static CodegenProperty removePropertyByBaseName(Collection<CodegenProperty> properties,
+			String propertyBaseName) throws IllegalArgumentException {
+		CodegenProperty prop = getPropertyByBaseName(properties, propertyBaseName);
+		if (prop != null) {
+			properties.remove(prop);
+		}
+		return prop;
+	}
+
+	/**
+	 * Tells if a model is extending another one (or equal to it) or not
+	 *
+	 * @param model
+	 *            the model you are curious about - can not be NULL!
+	 * @param assignableFromModel
+	 *            the model which you think might be the superclass - can not be NULL!
+	 * @return TRUE if "model" extends "superclassCandidate" - FALSE otherwise
+	 */
+	public static boolean isModelAssignableFromModel(CodegenModel model, CodegenModel assignableFromModel) {
+		Preconditions.checkArgument(model != null, "'model' argument was NULL which is invalid here");
+		Preconditions.checkArgument(assignableFromModel != null,
+				"'assignableFromModel' argument was NULL which is invalid here");
+		validateModelState(model, ModelState.baseCodegenFullyEnriched);
+
+		// equality?
+		if (model.name.equals(assignableFromModel.name)) {
+			return true;
+		}
+
+		// extending?
+		CodegenModel parent = assignableFromModel.parentModel;
+		while (parent != null) {
+			if (parent.name.equals(model.name)) {
+				// we are good
+				return true;
+			}
+			parent = parent.parentModel;
+		}
+		return false;
+	}
+
+	/**
+	 * Tells if a property (of a model) is assignable from another property (same or another model) or
+	 * not.
+	 * <p>
+	 * This basically means either
+	 * <ul>
+	 * <li>both using primitive datatype and these datatypes are the same, or
+	 * <li>the property has an object datatype and the other property is either the same object or an
+	 * object which extends the object, or
+	 * <li>both are arrays or maps - and the items are assignable from each other due to the above
+	 * </ul>
+	 *
+	 * @param property
+	 *            the property you would like to put on the left side of the assignment (gets the value)
+	 * @param assignableFromProperty
+	 *            the property you would like to pput to the right side of the assignment (it will be
+	 *            the value to assign)
+	 * @param allModels
+	 *            collection of all data models which are in the generation context (maybe see
+	 *            {@link IKeytilesCodegen#getAllModels()}
+	 * @return TRUE if the property = assignableFromProperty assignment would work - FALSE otherwise
+	 */
+	public static boolean isPropertyAssignableFromProperty(CodegenProperty property,
+			CodegenProperty assignableFromProperty, Collection<CodegenModel> allModels) {
+		Preconditions.checkArgument(property != null, "'property' argument was NULL which is invalid here");
+		Preconditions.checkArgument(assignableFromProperty != null,
+				"'assignFromProperty' argument was NULL which is invalid here");
+
+		// if this is an array...
+		if (property.getIsArrayModel()) {
+			if (assignableFromProperty.getIsArrayModel()) {
+				// ... and the this one too then Item should decide
+				return isPropertyAssignableFromProperty(property.items, assignableFromProperty.items, allModels);
+			} else {
+				// ... otherwise.. no
+				return false;
+			}
+		}
+
+		// if this is a list...
+		if (property.getIsListContainer()) {
+			if (assignableFromProperty.getIsListContainer()) {
+				// ... and the this one too then Item should decide
+				return isPropertyAssignableFromProperty(property.items, assignableFromProperty.items, allModels);
+			} else {
+				// ... otherwise.. no
+				return false;
+			}
+		}
+
+		// if this is a map...
+		if (property.getIsMapContainer()) {
+			if (assignableFromProperty.getIsMapContainer()) {
+				// ... and the this one too then Item should decide
+				return isPropertyAssignableFromProperty(property.items, assignableFromProperty.items, allModels);
+			} else {
+				// ... otherwise.. no
+				return false;
+			}
+		}
+
+		// so far we finished with "container" cases
+
+		// let's make a fail safe!
+		Preconditions.checkState(property.items == null,
+				"Oops! It looks property '%s' has items... but code is not prepared for this! Please report this case as a bug!",
+				property);
+
+		if (assignableFromProperty.getIsListContainer() || assignableFromProperty.getIsArrayModel()
+				|| assignableFromProperty.getIsMapContainer()) {
+			return false;
+		}
+		// another failsafe
+		Preconditions.checkState(assignableFromProperty.items == null,
+				"Oops! It looks property '%s' has items... but code is not prepared for this! Please report this case as a bug!",
+				assignableFromProperty);
+
+		// ok so property if not a array, not map - it can be primitive or an object
+		// but the point is: it is in the .datatype attrib
+
+		// trivial case
+		if (Objects.equals(property.datatype, assignableFromProperty.datatype)) {
+			return true;
+		}
+
+		// let's find the model the properties are taking
+		// note: it is possible (if primitive type e.g.) we will not find them
+		CodegenModel propertyModel = null;
+		CodegenModel assignFromPropertyModel = null;
+		for (CodegenModel model : allModels) {
+			if (model.name.equals(property.datatype)) {
+				propertyModel = model;
+			}
+			if (model.name.equals(assignableFromProperty.datatype)) {
+				assignFromPropertyModel = model;
+			}
+		}
+
+		// for several reasons it is possible a datatype is not found in models
+		// it can be a primitive type OR maybe "BigDecimal" or "Float" is assigned
+		// the point is: if we do not find ANY model then straight equality should be used for now
+		// but we actually already checked that ^^^ see above!
+		// so... no...
+		if (propertyModel == null || assignFromPropertyModel == null) {
+			return false;
+		}
+
+		// so we have 2 models
+		// good! then...
+		return isModelAssignableFromModel(propertyModel, assignFromPropertyModel);
+	}
+
+	/**
+	 * Tells if a model is directly declared in the schema (Any schema... Even schemas which is not the
+	 * current one (we are generating) but we imported the model from another schema using $ref!) by the
+	 * user, or just "fabricated" by the Codegen because it was declared inline or similar situation has
+	 * happened
+	 *
+	 * @return TRUE if this model is fabricated by codegen - FALSE if this is declared by the user in
+	 *         schema
+	 */
+	public static boolean isModelFabricatedModel(CodegenModel theModel) {
+		boolean isFabriacted = StringUtils.isBlank(theModel.modelJson);
+		// if (isFabriacted) {
+		// LOGGER.info("buu");
+		// }
+		return isFabriacted;
+	}
+
+	/**
+	 * Wrapper around {@link CodegenBugfixAndEnhanceHelper#isOwnModel(CodegenModel)} - see description
+	 * there
+	 */
+	public static boolean isOwnModel(CodegenModel model) {
+		return CodegenBugfixAndEnhanceHelper.isOwnModel(model);
+	}
+
+	/**
+	 * Checks if the user assigned default value to the property or not
+	 */
+	public static boolean hasPropertyUserAssignedDefaultValue(CodegenModel model, CodegenProperty property) {
+		if (property.jsonSchema != null) {
+			return property.jsonSchema.contains("\"default\"");
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if the property has a default value or not
+	 *
+	 */
+	public static boolean hasPropertyDefaultValue(CodegenModel model, CodegenProperty property) {
+		return property.defaultValue != null && !"null".equals(property.defaultValue);
+	}
+
+	/**
+	 * Checks if a property is mandatory in the model
+	 */
+	public static boolean isPropertyMandatory(CodegenModel model, CodegenProperty property) {
+		return model.mandatory.contains(property.baseName);
 	}
 
 	/**
@@ -201,7 +632,7 @@ public class CodegenUtil {
 		boolean directComposedEnumModel = isModelComposedEnumModel(theComposedEnumModelCandidate);
 		boolean indirectComposedEnumModel = isModelImplementingAnyComposedEnumModelInterfaces(
 				theComposedEnumModelCandidate);
-		boolean isDirectlyDeclared = isModelDirectlyDeclaredInSchema(theComposedEnumModelCandidate);
+		boolean isDirectlyDeclared = !isModelFabricatedModel(theComposedEnumModelCandidate);
 
 		// if (directComposedEnumModel || indirectComposedEnumModel) {
 		// String str = __stringifyObject(" ", "\n", theComposedEnumModelCandidate);
@@ -238,6 +669,11 @@ public class CodegenUtil {
 		joinedEnumModel.optionalVars = new ArrayList<>();
 		joinedEnumModel.vendorExtensions = new HashMap<>();
 		joinedEnumModel.vendorExtensions.put(CodegenConstants.IS_ENUM_EXT_NAME, true);
+		// let's inherit this
+		joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MODEL_IS_OWN_MODEL,
+				CodegenBugfixAndEnhanceHelper.isOwnModel(theComposedEnumModelCandidate));
+		// this fabricated model will not be more "enriched" for sure :-)
+		joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MODEL_STATE, ModelState.fullyEnriched);
 
 		joinedEnumModel.allowableValues = new HashMap<>();
 		List<Object> values = new ArrayList<>();
@@ -279,11 +715,11 @@ public class CodegenUtil {
 		}
 
 		// let's mark this model so we can know later we altered this here
-		joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MERGED_ENUM, true);
+		joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MODEL_MERGED_ENUM, true);
 		if (isDirectlyDeclared) {
-			joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_SCHEMA_DEFINED_MERGED_ENUM, true);
+			joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM, true);
 		} else {
-			joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_FABRICATED_MERGED_ENUM, true);
+			joinedEnumModel.vendorExtensions.put(IKeytilesCodegen.X_MODEL_FABRICATED_MERGED_ENUM, true);
 		}
 
 		// let's hook in the explanations if feature is requested

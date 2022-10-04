@@ -310,6 +310,46 @@
 						</configuration>
 					</execution>				
 
+					<execution>
+						<id>property-overrides</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/property-overrides.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.simpleconsistent.prop_overrides</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>property-overrides</mavenExecutionId>
+								<!-- warning! order really matters here! see README! -->
+								<!-- 
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.simpleconsistent.imported_2ndlevel,
+									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.simpleconsistent.imported
+								</addSchemaModelsToImportMappings>
+								-->
+								<!-- <addSchemaModelsToImportMappingsFromMavenExecutions>imported-types-2nd-level, imported-types</addSchemaModelsToImportMappingsFromMavenExecutions> -->
+								<!-- default: true -->
+								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
+								<!-- default: false -->
+								<addExplanationsToModel>true</addExplanationsToModel>
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+							</configOptions>
+						</configuration>
+					</execution>				
+
 
 					<!-- ================================================================================================== -->
 					<!-- this is the original Java codegen generation with <modelStyle>inherited</modelStyle> -->
@@ -444,6 +484,45 @@
 								</addSchemaModelsToImportMappings>
 								-->
 								<addSchemaModelsToImportMappingsFromMavenExecutions>_imported-types-2nd-level, _imported-types</addSchemaModelsToImportMappingsFromMavenExecutions>
+								<!-- default: true -->
+								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
+								
+								<interfaceOnly>true</interfaceOnly>
+								<dateLibrary>java8</dateLibrary>
+							</configOptions>
+						</configuration>
+					</execution>			
+
+					<execution>
+						<id>_property-overrides</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/openapi/property-overrides.yaml</inputSpec>
+							<output>${tests.generation.path}</output>
+							<modelPackage>com.keytiles.api.model.test.inherited.prop_overrides</modelPackage>
+							<language>com.keytiles.swagger.codegen.KeytilesJavaCodegen</language>
+							<!-- <library>resttemplate</library> -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateApiTests>false</generateApiTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelTests>false</generateModelTests>
+							<generateModelDocumentation>false</generateModelDocumentation>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<mavenExecutionId>_property-overrides</mavenExecutionId>
+								<modelStyle>inherited</modelStyle>
+								<!-- warning! order really matters here! see README! -->
+								<!-- 
+								<addSchemaModelsToImportMappings>
+									${project.basedir}/src/test/openapi/imported-types-2nd-level.yaml::modelPackage=com.keytiles.api.model.test.inherited.imported_2ndlevel,
+									${project.basedir}/src/test/openapi/imported-types.yaml::modelPackage=com.keytiles.api.model.test.inherited.imported
+								</addSchemaModelsToImportMappings>
+								-->
+								<!-- <addSchemaModelsToImportMappingsFromMavenExecutions>_imported-types-2nd-level, _imported-types</addSchemaModelsToImportMappingsFromMavenExecutions> -->
 								<!-- default: true -->
 								<!-- excludeImportMappingsFromGeneration>false</excludeImportMappingsFromGeneration> -->
 								

@@ -31,6 +31,13 @@ This means that:
  * Added support for composition of Enums - see README for more details
  * Added KeytilesJavaCodegen.support_mapDefaultValue(CodegenModel, CodegenProperty) method - which makes the default '= null' in case the map field is nullable (instead of creating a new HashMap<>() instance)
  * pojo.mustache was modified to add (back) helper methods to add/remove values to/from non-readonly array and map fields. The add methods are doing a null check and initiating the container field in case its null.
+ * Significantly enhanced mechanisms to recognize and deal with 'extends' and property override - until "Java limitations with generating models" (see README) not hit (also recognized) and fail the build if needed. In simpleConsistent style we do not allow original Java codegen strategy: "rename if conflicts" as that leads to messy models. In order to get this done:
+    * Enhanced ExtraModelInfo - now it is recognizing "extends". If a property is assignable from a subclass property (same name) so to say. This makes it possible to optimize the constructor arguments and also the fields if superclass is actually capable of storing something "extended" value
+    * Enhanced CodegenUtil - this is participating in ExtraModelInfo enhancements
+       * .isModelAssignableFromModel() was introduced
+       * .isPropertyAssignableFromProperty() was introduced
+       * CodegenUtilTest is added to extensively test the above two things
+    * For testing TestUtils was added and this makes it possible to trigger the Keytiles codegen from unit test level allowing us to create tests where we actually expect the Codegen to fail. BuildFailsTest was added therefore which checks the README "Java limitations with generating models" section cases
 
 ## Bugfixes
  * During inheritance when Superclass has a constructor sometimes the Subclass did not pick up imports needed by Superclass - that lead to generated model compilation problems. This is now fixed (or at least better). Also added model structure to tested OpenApi schemas which is checking this works.

@@ -9,6 +9,7 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.keytiles.swagger.codegen.IKeytilesCodegen;
+import com.keytiles.swagger.codegen.IKeytilesCodegen.ModelState;
 
 import io.swagger.codegen.v3.CodegenConstants;
 import io.swagger.codegen.v3.CodegenModel;
@@ -19,6 +20,8 @@ public class ModelExtraInfoTest {
 	private CodegenModel getModelWithProperty(boolean nullable, boolean hasDefault, boolean mandatory, boolean readonly)
 			throws JsonProcessingException {
 		CodegenModel model = new CodegenModel();
+		model.vendorExtensions.put(IKeytilesCodegen.X_MODEL_STATE, ModelState.fullyEnriched);
+
 		model.name = "theModel";
 		CodegenProperty property = new CodegenProperty();
 		property.baseName = "baseName";
@@ -339,4 +342,5 @@ public class ModelExtraInfoTest {
 				.contains("can not be 'required=true' while having 'default: <value>' at the same time"));
 
 	}
+
 }

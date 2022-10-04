@@ -1,0 +1,44 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    # In this test we create a public List<> field in BaseClass and SubClass
+    # They are not compatible with inner type
+    # This would be OK in a case of public fields but here we enforce BaseClass to take this
+    # from the Constructor - and this is definitely causing problems so we should fail
+  
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      required:
+      - publicErrorCodesArray
+      properties:
+        # array of String error codes - public, but enforced into the constructor
+        publicErrorCodesArray:
+          type: array
+          items:
+            type: string
+          nullable: true
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      properties:
+        # override array of error codes with incompatible type - public field
+        publicErrorCodesArray:
+          type: array
+          items:
+            type: integer
+          nullable: true
+      

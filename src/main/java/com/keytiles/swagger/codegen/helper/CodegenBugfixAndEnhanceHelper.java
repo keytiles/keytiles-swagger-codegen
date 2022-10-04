@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
@@ -24,6 +26,8 @@ import io.swagger.codegen.v3.CodegenProperty;
  *
  */
 public class CodegenBugfixAndEnhanceHelper {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(CodegenBugfixAndEnhanceHelper.class);
 
 	private CodegenBugfixAndEnhanceHelper() {
 	}
@@ -55,6 +59,10 @@ public class CodegenBugfixAndEnhanceHelper {
 	public static void validateOnlySupportedVendorAttributesAreUsedOnModel(IKeytilesCodegen codegen,
 			CodegenModel model) {
 		Set<String> supportedAttrs = codegen.getAllSupportedObjectLevelVendorFieldNames();
+		// let's add a few which are actually added by code and not user
+		supportedAttrs.add(IKeytilesCodegen.X_MODEL_IS_OWN_MODEL);
+		supportedAttrs.add(IKeytilesCodegen.X_MODEL_STATE);
+
 		model.getVendorExtensions().keySet().forEach(key -> {
 			Preconditions.checkState(
 					key.startsWith(IKeytilesCodegen.VENDOR_PREFIX) == false || supportedAttrs.contains(key),
@@ -249,4 +257,70 @@ public class CodegenBugfixAndEnhanceHelper {
 			}
 		});
 	}
+
+	/**
+	 * This method is checking the model - whether it is defined directly in the schema we are
+	 * generating, or just imported from another schema file. The "own" models are marked with
+	 * {@link IKeytilesCodegen#X_MODEL_IS_OWN_MODEL} = TRUE
+	 *
+	 */
+	public static void markOwnModel(CodegenModel model, IKeytilesCodegen codegen) {
+
+		// note: for now we just do something stupid string search... but should do
+		boolean isOwnDefinedModel = codegen.getInputSpec().contains(" " + model.name + ":");
+		model.vendorExtensions.put(IKeytilesCodegen.X_MODEL_IS_OWN_MODEL, isOwnDefinedModel);
+
+		if (isOwnDefinedModel && CodegenUtil.isModelFabricatedModel(model)) {
+			LOGGER.info("buu ==== contradicting own: {}", model);
+		}
+	}
+
+	/**
+	 * Helper method to quickly ask if a model is own model or not - see
+	 * {@link #markOwnModel(CodegenModel, IKeytilesCodegen)}!
+	 *
+	 * @param model
+	 * @return TRUE if yes FALSE if not
+	 * @throws IllegalStateException
+	 *             in case the marker flag is missing
+	 */
+	public static boolean isOwnModel(CodegenModel model) {
+		Boolean isOwn = (Boolean) model.vendorExtensions.get(IKeytilesCodegen.X_MODEL_IS_OWN_MODEL);
+		Preconditions.checkState(isOwn != null,
+				"Oops! It looks this model '%s' was not going through the %s.markOwnModel() method earlier... How is it possible? Did you create this by hand?",
+				model, CodegenBugfixAndEnhanceHelper.class.getSimpleName());
+		return isOwn;
+	}
+
+	/**
+	 * We can add importMappings - fine. This is a supported feature. But that import mapping works
+	 * really dumb... It's just a name of the model. Without info from where it was coming from. If our
+	 * own schema contains an own model with the same name we might seriously obfuscate things.
+	 * Therefore it is better not to allow this and fail the build in this case
+	 * <p>
+	 * note: it is possible this could be enhanced in the future but for now let's just be on the safe
+	 * side and do not allow this
+	 *
+	 * @param allModels
+	 * @param codegen
+	 */
+	public static void ensureNoConflictBetweenNameOfOwnModelsAndImportedModels(Map<String, CodegenModel> allModels,
+			IKeytilesCodegen codegen) {
+
+		for (CodegenModel model : allModels.values()) {
+			String importMappingPackageName = codegen.importMapping().get(model.name);
+			if (importMappingPackageName != null) {
+				boolean isOwnDefinedModel = isOwnModel(model);
+				if (isOwnDefinedModel) {
+					// we have a conflict!
+					throw new SchemaValidationException("model '" + model.name
+							+ "' is defined in the schema but there is a model in importMappings too with the same name (coming from package '"
+							+ importMappingPackageName
+							+ "') - this is not really safe... As importMappings in original Codegen just works based on model names without considering the source (ppackage) and this way there is no possibility to distinguish btw imported models and defined models... So please rename this model either in the import place or in the schema!");
+				}
+
+			}
+		}
+	}
+
 }

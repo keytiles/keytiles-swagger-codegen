@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.keytiles.swagger.codegen.ResourceUtil;
+import com.keytiles.swagger.codegen.testing.ResourceUtil;
 
 public class SchemaParamTest {
 

@@ -1,0 +1,41 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    # This is trciky. In this test we create a
+    # - private field in BaseClass
+    # - but public override field in SubClass
+    # They are not compatible
+    # We do not support at the moment "changing visibility" of a field so it should fail
+  
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      properties:
+        # one single string errorCode - private field, it has a default but it does not matter
+        errorCode:
+          type: string
+          nullable: false
+          default: ''
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      properties:
+        # override error code with incompatible type - same private field even more relaxed but still
+        errorCode:
+          type: integer
+          nullable: true
+          default: 0
+      

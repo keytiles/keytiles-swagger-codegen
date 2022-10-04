@@ -159,7 +159,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   // Hey! Probably we need something similar Gson based annotation like @JsonCreator for Jackson here?
 {{/gson}}
   public {{classname}}({{{constructorCombinedArgs}}}) {
-    super({{#each constructorSuperArgs}}{{#if @index}}, {{/if}}{{name}}{{/each}});
+    super({{#each constructorPassToSuperArgs}}{{#if @index}}, {{/if}}{{name}}{{/each}});
 {{#constructorValidateNonNullArgs}}
     if({{name}} == null) {
       throw new IllegalArgumentException("'{{{name}}}' value can not be NULL");

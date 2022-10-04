@@ -24,12 +24,13 @@ The following are happening globally:
 * **@javax.*** annotations are also removed from generated model classes
 * `serializableModel` is turned on by default (model classes are implementing `Serializable` interface). But you can overcome this with adding option `serializableModel=false`
 * <a name="global_differences_ignoreimportmapping"></a>`ignoreImportMapping` option is defaulted to `false` - at least in the beginning... (see my comment: https://github.com/swagger-api/swagger-codegen/issues/10419#issuecomment-1184578892) But it is enough to get the <importMappings> option working and collect models. Of course this would not block generate models we dont want/need so option `excludeImportMappingsFromGeneration` is also introduced.
+* if you use `importMappings` then a strict rule was introduced: it is not allowed to define model with the same name which is also present in the imports
 * several extra OpenApi `x-` tags are available to drive model generation on a "hint" basis - see section [OpenApi 'x-' tags](#opeanapi_x_tags) for more details!
 * added support to use primitive types in models instead of always using wrapper classes - see [option usePrimitiveTypesIfPossible](#option_useprimitivetypesifpossible)
 * handling of referred in (using `$ref`) objects/enums is enhanced - now the attributes of the referred object (if has any) like `nullable` or `default` is considered and not just simply ignored - in line with [OpenApi v3 spec, "$ref and Sibling Elements" section](https://swagger.io/docs/specification/using-ref)
 * schema validation is enhanced so model generation will break in cases which does not make any sense, e.g. if a) someone writes a schema in which he tries to extend an Enum (using `allOf`) or b) one makes an object property `mandatory=true` and also assignd a `default` value (as this is contradicting information due to OpenApi spec)
 * however extending an Enum is not possible (in Java for sure) we added support for using composition of Enums - see [Support for Enum composition](#enum_composition)
-* support id added to give Array fields default value - see [Support for Array fields default value](#array_default)
+* support is added to give Array fields default value - see [Support for Array fields default value](#array_default)
 
 
 ### <a name="option_modelstyle"></a>option 'modelStyle'
@@ -44,12 +45,13 @@ In this case not much happens compared to the underlying Java rendering just wha
 
 #### value 'simpleConsistent' (default)
 
-With this model generation style we get a more straightforward model. And property modifiers like `required`, `readOnly: true`, `nullable` and `default` declarations become important.
+With this model generation style you get generated models highly respects the contract (the OpenApi schema). Property modifiers like `required`, `readOnly: true`, `nullable` and `default` declarations become very important!
 
-The main goal is: to get a simplified (no unnecessary setters/getters) but enforced consistency (instantiation of a model class via non-zero argument constructor if needed) in the generated models.
+The main goal is: to get a simplified (e.g. no unnecessary setters/getters but make the field public) but enforced consistency (instantiation of a model class via non-zero argument constructor - if needed) in the generated models.
 
 This approach brings closer the written code (which is working with the models) with the defined OpenApi contracts and while we are writing the code - thanks to the enforced consistency - we might get into situations more likely we realize the model is not good enough / not behaves as expected and contract should be modified / fine tuned maybe?
-Also when we change the contract and regenerate the models it might lead to compile errors quickly - showing clearly which parts the current code (working with the models) needs adjustments.
+
+As a side effect when we change the contract and regenerate the models it might lead to compile errors quickly in your code - showing clearly which parts the current code (working with the models) need adjustments.
 
 <a name="simpleconsistent_rules"></a>
 The following table is showing/summarizing how the logic works under the hood considering the `required`, `readOnly: true`, `nullable` and `default` modifiers.
@@ -78,7 +80,28 @@ In this case you can use this option - which is a boolean option
 **note:** You also have the possibility to control this behavior on Object or even on Property level in the schema using the
 `x-keytiles-keep-property-names` / `x-keytiles-keep-property-name` flags!
 
-### option 'addExplanationsToModel'
+### <a name="option_allowrenameconflictingfields"></a>option 'allowRenameConflictingFields'
+
+This is a boolean option. Default:
+ * true for `modelStyle=inherited` (maintain backward compatibility)
+ * false for `modelStyle=simpleConsistent`
+
+This flag controls if it is allowed to the Codegen to rename a property in a Subclass which conflicts (conflict = same name but different data type) or not - so fail the build instead and let user re-think about his schema.
+
+There are some cases when your contract simply can not be generated into Java models which would compile. See [Java limitations with generating models](#java_limitations) for more info!
+
+The original Java Codegen has a mechanism to recognize these cases and it applies a simple solution for that: it simply renames the field of the Subclass by prepending the field name with the name of the Subclass.
+
+Well this definitely solves the problem of the Codegen itself :-) And even marshalling to / unmarshalling from e.g. a JSON representation of the model will work correctly (thanks to @JsonProperty annotations). But the model would just look strange...
+
+For example: Working with a Subclass from your code will be confusing because it will have a) the renamed property and its setter/getter methods b) but will also have the original ones inherited from the Superclass. This definitely creates confusion and can even lead to misuse the models and therefore simply generate a wrong JSON at the end! (e.g. if someone is loading value into the Superclass field instead of the renamed one then JSON simply will be wrong)
+
+Doing a property auto-rename is simply contradicting with the intentions of the "consistent" part of "simpleConsistent" - this is why by default in this model style this is not allowed.
+
+note: if you allow Codegen to do this thing then in "simpleConsistent" model style if [addExplanationsToModel](#option_addexplanationstomodel) is turned on then Codegen will mark these fields for you.
+
+
+### <a name="option_addexplanationstomodel"></a>option 'addExplanationsToModel'
 
 This is a boolean option. Default: false
 
@@ -144,7 +167,9 @@ Set `addSchemaModelsToImportMappings` to `base-types.yaml::modelPackage=myapis.b
 
 You can take a look below [how to use it in Maven plugin](#usage_maven) - using it on CLI is very similar.
 
-**Please note!** If you add more schemas in this option separated with `,` then keep an eye on the order! It matters! Because the generator will iterate through the schemas in the given order and build the `importMappings` the way a model (object) is just added to it if it is not in the importMappings yet!
+> **Please note!** If you add more schemas in this option separated with `,` then keep an eye on the order! It matters! 
+
+Because the generator will iterate through the schemas in the given order and build the `importMappings` the way a model (object) is just added to it if it is not in the importMappings yet! What does it mean? If you import two sources A and B and if there is a model with the same name in both A and B then the `importMappings` will contain the model comes from A and will ignore the model comes from B.
 
 
 ### option 'excludeImportMappingsFromGeneration'
@@ -330,7 +355,8 @@ The following extra variables are available:
  note: if needsConstructor is true then you also need to take these arguments there and assign to the fields!
  * **privateFields**: list of CodegenProperty objects (like in {#vars}) which are 'private' fields of the model.
  * **publicFields**: list of CodegenProperty objects (like in {#vars}) which are 'public' fields of the model.
- * **constructorSuperArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which we take as arguments because we need to pass them to our Superclass constructor. If needsConstructor=false then or no such arguments needed then this list is empty.
+ * **constructorForSuperArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which we must take as arguments into the constructor because we need to pass them to our Superclass constructor. If needsConstructor=false then or no such arguments needed then this list is empty.
+ * **constructorPassToSuperArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which we need to add (in order!) to the `super(...)` call in the constructor. If needsConstructor=false then or no such arguments needed then this list is empty. 
  * **constructorOwnFieldArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which however not `private final` fields (must taken from constructor) but other reasons. One reason is that the field is `required` (mandatory). Or not mandatory but `nullable:false` and does not have a good default value we could automatically assign so we need to enforce a non-null instantiation value too.
  * **constructorValidateNonNullArgs**: if we need a constructor (see needsConstructor) then list of CodegenProperty objects (like in {#vars}) which the constructor must validate being non-null
  * **constructorCombinedArgs**: if we need a constructor (see needsConstructor) then this is a simple string which contains concatenation of constructorSuperArgs + privateFinalFields + constructorOwnFieldArgs properties and rendered as a comma separated list of arguments. Just as you would write the arguments in Java code. 
@@ -520,3 +546,230 @@ MyObject:
 private List<ComposedEnumWithAnyOf> inlineComposedEnumWithOneOfArrayField = new ArrayList<>();
 
 ```
+
+# <a name="java_limitations"></a>Java limitations with generating models
+
+Keytiles Codegen might fail the build in some cases which might surprise you at the first sight. It will surprise you because actually what you wrote in your OpenApi contract makes sense and is logical from contract perspective. But to put it simple: not valid / doable in Java...
+
+In this section we try to document and explain these cases.
+
+**note:** In some of the cases even the original Java Codegen might generate models for you which would result in compilation errors. All we did in Keytiles Java codegen is that we tried to capture these cases and fail the whole build - trying to give explanation "why?" in the error message - instead of generating something which is simply crap.
+
+## Trigger point of the "grey zone"
+
+The trigger point of all of these problems are the keywords: `extends` and `override`... More specifically: when you try to extend a model and also override a property definition in the subclass.
+
+## What is the problem?
+
+### Trivial case
+
+A schema like the following shows a trivial collision:
+
+```
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+  schemas:
+  
+    BaseClass:
+      type: object
+      properties:
+        errorCode:
+          type: string
+            
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      properties:
+        # override error code with incompatible type
+        errorCode:
+          type: integer
+```
+
+How could in this case the generated BaseClass and SubClass look like in Java? Have you ever thought about it?
+
+Well, if we make the `errorCode` field `public` then we do not really have any problems right? So this is OK:
+
+```
+class BaseClass {
+    public String errorCode;
+}
+
+class SubClass {
+    public Integer errorCode;
+}
+```
+
+And you are right! Java will not complain and your code would behave as you expect.
+
+But what if we want `private` field for whatever reason? That would end up in this:
+
+```
+class BaseClass {
+    private String errorCode;
+    
+    public String getErrorCode() {
+        return this.errorCode;
+    }
+    
+    public void setError(String errorCode) {
+        this.errorCode = errorCode;
+    }
+}
+
+class SubClass extends BaseClass {
+    private Integer errorCode;
+
+    public Integer getErrorCode() {
+    	return this.errorCode;
+    }
+
+    public void setError(Integer errorCode) {
+        this.errorCode = errorCode;
+    }
+}
+```
+
+This code would not compile... Compiler would raise a problem at the `getErrorCode()` method...
+
+What can we do about it?
+
+Well not that much... The only option we have: either fail the codegen process OR rename the "conflicting" field in the `SubClass`. And this is exactly what the original Java Codegen does! (But luckily in Keytiles Java Codegen we have more options)
+
+### List and Map fields (generic types)
+
+But apart from the above trivial problem let us show you a more tricky one!
+
+To demonstrate this let's take a simple example! Assume you have an OpenApi schema like this:
+
+```
+openapi: 3.0.1
+
+paths: {}
+
+components:
+  schemas:
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      properties:
+        # having a field which is array of FieldClass objects
+        privateObjectArrayField:
+          type: array
+          nullable: false
+          items:
+            $ref: "#/components/schemas/FieldClass"
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      required:
+      - privateObjectArrayField
+      properties:
+        privateObjectArrayField:
+          type: array
+          nullable: false
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+
+
+    # we will use this in one field as type
+    FieldClass:
+      type: object
+      properties:
+        baseField:
+          type: string
+          nullable: true
+    
+    # and this one in a subclass of the above
+    ExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/FieldClass"
+      type: object
+      required:
+      - privateObjectArrayField
+      properties:
+        extraField:
+          type: string
+          nullable: true
+
+
+```
+
+Before you continue reading **please note:**
+ * `BaseClass.privateObjectArrayField` becomes private - as non-nullable so we need to protect it with setter and null-check. Same is true for `SubClass.privateObjectArrayField`
+ * As `privateObjectArrayField` in both classed is `required` we need to take them into the constructor - user must say something about it!
+ 
+ 
+This means in java this would lead to a model generation looks like this (high level view):
+
+```
+Class ExtendedFieldClass extends FieldClass;
+
+Class BaseClass
+	private List<FieldClass> privateObjectArrayField;
+
+	// the constructor
+	public BaseClass(List<FieldClass> privateObjectArrayField) {
+	   ...
+	}
+	...
+}
+
+Class SubClass {
+	private List<ExtendedFieldClass> privateObjectArrayField;
+	
+	public SubClass(List<ExtendedFieldClass> privateObjectArrayField) {
+		super(subClassPrivateObjectArrayField)
+	}
+}
+
+```
+
+And here comes the problem... Compiler would indicate error in `SubClass` constructor, at the `super()` call saying "it is undefined". Pfffhh "why?" - you could ask. Both are lists, and `FieldClass` extends `ExtendedFieldClass` so... Does it mean I can not do something like this in Java???
+
+```
+Class B extends A;
+
+List <B> bList = new ArrayList<B>();
+List <A> aList = bList;
+```
+
+and the answer is: exactly, you can not do something like this in Java... and even worse: there is no good workaround for this!
+
+If you are interested in why Java is rigid with this one check out these discussions:
+ * https://stackoverflow.com/questions/6260841/java-generics-assigning-a-list-of-subclass-to-a-list-of-superclass
+ * https://stackoverflow.com/questions/45609642/why-we-cant-add-the-elements-in-java-generics-using-extends-bounds
+ 
+**Keytiles Codegen is recognizing this problem and will fail the build for you!**
+
+## So what can I do then?
+
+You have some options to avoid things like this happening and work with property overrides. But you have to go back to your schema level and re-think a few things. Here are some strategies you could consider.
+
+note: You might also find [this table](#simpleconsistent_rules) useful at this point!
+
+Your most important goal is: no conflicts in methods! Potential conflicting methods are:
+ * Constructor - when field is generic type (List<> or Map<>) OR subclass field is not compatible (in type) with superclass field
+ * Getter and Setter - in the same cases basically
+
+ 1. Can you make the field `public`? Because then getter/setter method will go away.
+ 1. Also try to avoid the Constructor with this property!
+    * do not mark the field as `required`
+    * `nullable=false` is also a problem because then a null-value protection is needed -> a setter method will be used (and field becomes private)
+ 1. Last but not least your final option (not preferred!) is to use the option [allowRenameConflictingFields](#option_allowrenameconflictingfields) - but it will come with serious drawbacks and increased risk of writing bad code which is working with the model
+ 
+
+
+
+
