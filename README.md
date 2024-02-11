@@ -31,6 +31,7 @@ The following are happening globally:
 * schema validation is enhanced so model generation will break in cases which does not make any sense, e.g. if a) someone writes a schema in which he tries to extend an Enum (using `allOf`) or b) one makes an object property `mandatory=true` and also assignd a `default` value (as this is contradicting information due to OpenApi spec)
 * however extending an Enum is not possible (in Java for sure) we added support for using composition of Enums - see [Support for Enum composition](#enum_composition)
 * support is added to give Array fields default value - see [Support for Array fields default value](#array_default)
+* Enum renames based on "common prefix" in the name mechanism is turned off - it is causing confusion and breaks.
 
 
 ### <a name="option_modelstyle"></a>option 'modelStyle'
@@ -762,10 +763,13 @@ note: You might also find [this table](#simpleconsistent_rules) useful at this p
 Your most important goal is: no conflicts in methods! Potential conflicting methods are:
  * Constructor - when field is generic type (List<> or Map<>) OR subclass field is not compatible (in type) with superclass field
  * Getter and Setter - in the same cases basically
+ 
+To resolve the problems (and get a consistent schema and also models) you can do the following: 
 
- 1. Can you make the field `public`? Because then getter/setter method will go away.
- 1. Also try to avoid the Constructor with this property!
-    * do not mark the field as `required`
+ 1. Can you make the field `public`? Because then getter/setter method will go away.  
+ This means: set `nullable=true` (to avoid null-protective setter) and `readOnly=false`. If you hate to have NULL values by default, consider using the `default` value as a possibility!
+ 1. If you have List<> or Map<> field, OR an incompatible field (e.g. in super it is String but in the override you want Integer) avoid them taken into the Constructor!
+    * do not mark the field as `required` - otherwise Constructor kicks in for sure
     * `nullable=false` is also a problem because then a null-value protection is needed -> a setter method will be used (and field becomes private)
  1. Last but not least your final option (not preferred!) is to use the option [allowRenameConflictingFields](#option_allowrenameconflictingfields) - but it will come with serious drawbacks and increased risk of writing bad code which is working with the model
  

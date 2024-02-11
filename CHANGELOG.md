@@ -41,6 +41,7 @@ This means that:
 
 ## Bugfixes
  * During inheritance when Superclass has a constructor sometimes the Subclass did not pick up imports needed by Superclass - that lead to generated model compilation problems. This is now fixed (or at least better). Also added model structure to tested OpenApi schemas which is checking this works.
+ * Renaming ENUMs based on common prefixes (https://github.com/swagger-api/swagger-codegen/issues/5932 and https://github.com/swagger-api/swagger-codegen/issues/7725 - NOT FIXED!) problem is fixed by overriding findCommonPrefixOfVars() method
 
 # release 1.0.0
 

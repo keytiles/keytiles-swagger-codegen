@@ -54,6 +54,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(KeytilesJavaCodegen.class);
 
+	private final static String EMPTY_STRING = "";
+
 	public static class OriginalPropertyNames {
 		public String name;
 		public String getter;
@@ -293,6 +295,22 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	@Override
 	public String apiFilename(String templateName, String tag) {
 		return super.apiFilename(templateName, tag);
+	}
+
+	/**
+	 * Enums are renamed if they have common prefixes - somehow, magically<br>
+	 * As reported: https://github.com/swagger-api/swagger-codegen/issues/7725 and
+	 * https://github.com/swagger-api/swagger-codegen/issues/5932 they marked as fixed but apparently
+	 * not...
+	 * <p>
+	 * We override this method to enforce turn of prefix crap entirely for now I also filed
+	 * https://github.com/swagger-api/swagger-codegen-generators/issues/1075 asking why such a mechanism
+	 * exists?
+	 */
+	@Override
+	public String findCommonPrefixOfVars(List<Object> vars) {
+		// return super.findCommonPrefixOfVars(vars);
+		return EMPTY_STRING;
 	}
 
 	@SuppressWarnings("rawtypes")
