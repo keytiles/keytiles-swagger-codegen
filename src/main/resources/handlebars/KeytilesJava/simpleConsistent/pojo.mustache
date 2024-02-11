@@ -2,15 +2,18 @@
 @JsonInclude(JsonInclude.Include.NON_NULL)
 {{/notNullJacksonAnnotation}}
 
+{{#vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
+// @Generator: {{{explanationMessage}}} 
+{{/vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
 public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcelableModel}}implements Parcelable {{#serializableModel}}, Serializable {{/serializableModel}}{{#interfaceModels}}{{#@first}}, {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/parcelableModel}}{{^parcelableModel}}{{#serializableModel}}implements Serializable{{#interfaceModels}}{{#@first}}, {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/serializableModel}}{{^serializableModel}}{{#interfaceModels}}{{#@first}}implements {{/@first}}{{classname}}{{^@last}}, {{/@last}}{{#@last}} {{/@last}}{{/interfaceModels}}{{/serializableModel}}{{/parcelableModel}}{
 {{#serializableModel}}
   private static final long serialVersionUID = 1L;
 {{/serializableModel}}
 
 {{#privateFinalFields}}
-{{#vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
     {{#baseItems this}}
     {{#isEnum}}
 {{>modelInnerEnum}}
@@ -42,9 +45,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
 {{/privateFinalFields}}
 
 {{#privateFields}}
-{{#vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
     {{#baseItems this}}
     {{#isEnum}}
 {{>modelInnerEnum}}
@@ -73,7 +76,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/isXmlAttribute}}
   {{/withXml}}
   {{#isContainer}}
-  private {{{datatypeWithEnum}}} {{name}}{{^nullable}} = {{{defaultValue}}}{{/nullable}}{{#nullable}} = null{{/nullable}};
+  private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
   {{/isContainer}}
   {{^isContainer}}
   private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
@@ -82,9 +85,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/privateFields}}
 
 {{#publicFields}}
-{{#vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forProperty}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forProperty}}
     {{#baseItems this}}
     {{#isEnum}}
 {{>modelInnerEnum}}
@@ -95,9 +98,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @JsonTypeId
     {{/vendorExtensions.x-is-discriminator-property}}
     {{^vendorExtensions.x-is-discriminator-property}}
-    {{#vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{#vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonInclude(Include.NON_DEFAULT)
-    {{/vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{/vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonProperty("{{baseName}}")
     {{#withXml}}
       {{^isContainer}}
@@ -137,7 +140,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @SerializedName("{{baseName}}")
   {{/gson}}
   {{#isContainer}}
-  public {{{datatypeWithEnum}}} {{name}}{{^nullable}} = {{{defaultValue}}}{{/nullable}}{{#nullable}} = null{{/nullable}};
+  public {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
   {{/isContainer}}
   {{^isContainer}}
   public {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
@@ -146,9 +149,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/publicFields}}
   
 {{#needsConstructor}}
-{{#vendorExtensions.x-keytiles-model-explanations.forConstructor}}
+{{#vendorExtensions.x-keytilescomputed-model-explanations.forConstructor}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-model-explanations.forConstructor}}
+{{/vendorExtensions.x-keytilescomputed-model-explanations.forConstructor}}
 {{#jackson}}
   @JsonCreator
 {{/jackson}}
@@ -156,7 +159,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   // Hey! Probably we need something similar Gson based annotation like @JsonCreator for Jackson here?
 {{/gson}}
   public {{classname}}({{{constructorCombinedArgs}}}) {
-    super({{#each constructorSuperArgs}}{{#if @index}}, {{/if}}{{name}}{{/each}});
+    super({{#each constructorPassToSuperArgs}}{{#if @index}}, {{/if}}{{name}}{{/each}});
 {{#constructorValidateNonNullArgs}}
     if({{name}} == null) {
       throw new IllegalArgumentException("'{{{name}}}' value can not be NULL");
@@ -165,17 +168,17 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
     {{#privateFinalFields}}
     this.{{name}} = {{name}};
     {{/privateFinalFields}}
-    {{#constructorNonNullablePrivateArgs}}
+    {{#constructorOwnFieldArgs}}
     this.{{name}} = {{name}};
-    {{/constructorNonNullablePrivateArgs}}
+    {{/constructorOwnFieldArgs}}
   }
 {{/needsConstructor}}
   
   
 {{#privateFinalFields}}
-{{#vendorExtensions.x-keytiles-property-explanations.forGetter}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forGetter}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forGetter}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forGetter}}
 {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
 {{#vendorExtensions.extraAnnotation}}
   {{{vendorExtensions.extraAnnotation}}}
@@ -185,9 +188,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @JsonTypeId
     {{/vendorExtensions.x-is-discriminator-property}}
     {{^vendorExtensions.x-is-discriminator-property}}
-    {{#vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{#vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonInclude(Include.NON_DEFAULT)
-    {{/vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{/vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonProperty("{{baseName}}")
     {{#withXml}}
       {{^isContainer}}
@@ -211,9 +214,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/privateFinalFields}}
  
 {{#privateFields}}
-{{#vendorExtensions.x-keytiles-property-explanations.forGetter}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forGetter}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forGetter}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forGetter}}
 {{#vendorExtensions.extraAnnotation}}
   {{{vendorExtensions.extraAnnotation}}}
 {{/vendorExtensions.extraAnnotation}}
@@ -222,9 +225,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @JsonTypeId
     {{/vendorExtensions.x-is-discriminator-property}}
     {{^vendorExtensions.x-is-discriminator-property}}
-    {{#vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{#vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonInclude(Include.NON_DEFAULT)
-    {{/vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{/vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonProperty("{{baseName}}")
     {{#withXml}}
       {{^isContainer}}
@@ -247,17 +250,17 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   }  
   {{^isReadOnly}}
 
-{{#vendorExtensions.x-keytiles-property-explanations.forSetter}}
+{{#vendorExtensions.x-keytilescomputed-property-explanations.forSetter}}
   // @Generator: {{{explanationMessage}}} 
-{{/vendorExtensions.x-keytiles-property-explanations.forSetter}}
+{{/vendorExtensions.x-keytilescomputed-property-explanations.forSetter}}
   {{#jackson}}
     {{#vendorExtensions.x-is-discriminator-property}}
   @JsonTypeId
     {{/vendorExtensions.x-is-discriminator-property}}
     {{^vendorExtensions.x-is-discriminator-property}}
-    {{#vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{#vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonInclude(Include.NON_DEFAULT)
-    {{/vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{/vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonProperty("{{baseName}}")
     {{#withXml}}
       {{^isContainer}}
@@ -286,6 +289,50 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   {{/isReadOnly}}
 
 {{/privateFields}}
+
+{{#vars}}
+{{^isReadOnly}}
+  {{#isListContainer}}
+
+  // @Generator: builder style helper method to add values to not-readonly array field
+  public {{classname}} add{{nameInCamelCase}}Item({{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} == null) {
+ 		this.{{name}} = new ArrayList<>();
+    }
+    this.{{name}}.add({{name}}Item);
+    return this;
+  }
+
+  // @Generator: builder style helper method to remove values from not-readonly array field
+  public {{classname}} remove{{nameInCamelCase}}Item({{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} != null) {
+    	this.{{name}}.remove({{name}}Item);
+    }
+    return this;
+  }
+  {{/isListContainer}}
+  {{#isMapContainer}}
+
+  // @Generator: builder style helper method to put values into not-readonly map field
+  public {{classname}} put{{nameInCamelCase}}Item(String key, {{{items.datatypeWithEnum}}} {{name}}Item) {
+    if (this.{{name}} == null) {
+		this.{{name}} = new HashMap<>();
+    }
+    this.{{name}}.put(key, {{name}}Item);
+    return this;
+  }
+
+  // @Generator: builder style helper method to remove values from not-readonly map field
+  public {{classname}} remove{{nameInCamelCase}}Item(String key) {
+    if (this.{{name}} != null) {
+    	this.{{name}}.remove(key);
+    }
+    return this;
+  }
+  {{/isMapContainer}}
+{{/isReadOnly}}
+{{/vars}}
+
 {{^supportJava6}}
   @Override
   public boolean equals(java.lang.Object o) {

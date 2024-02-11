@@ -12,6 +12,10 @@ import com.google.gson.stream.JsonWriter;
 
 /**
  * {{^description}}Gets or Sets {{{name}}}{{/description}}{{#description}}{{description}}{{/description}}
+ *
+{{#vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
+ * @Generator: {{{explanationMessage}}} 
+{{/vendorExtensions.x-keytilescomputed-model-explanations.forTheClass}}
  */
 {{#gson}}
 @JsonAdapter({{#datatypeWithEnum}}{{{.}}}{{/datatypeWithEnum}}{{^datatypeWithEnum}}{{{classname}}}{{/datatypeWithEnum}}.Adapter.class)

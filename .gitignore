@@ -9,6 +9,8 @@ build/
 bin/
 out/
 
+~$*
+__*
 *.iml
 deps*.txt
 hs_err_pid*

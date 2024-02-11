@@ -21,9 +21,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#parcela
   @JsonTypeId
     {{/vendorExtensions.x-is-discriminator-property}}
     {{^vendorExtensions.x-is-discriminator-property}}
-    {{#vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{#vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonInclude(Include.NON_DEFAULT)
-    {{/vendorExtensions.x-keytiles-serialize-only-if-non-default}}
+    {{/vendorExtensions.x-keytilescomputed-serialize-only-if-non-default}}
   @JsonProperty("{{baseName}}")
     {{#withXml}}
       {{^isContainer}}

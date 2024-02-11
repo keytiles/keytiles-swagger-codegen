@@ -1,0 +1,59 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    # Similar to case 1 but now the List<> is public field - should not make any difference
+  
+
+    # we will use this in one field as type
+    FieldClass:
+      type: object
+      properties:
+        baseField:
+          type: string
+          nullable: true
+    
+    # and this one in a subclass of the above
+    ExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/FieldClass"
+      type: object
+      properties:
+        extraField:
+          type: string
+          nullable: true
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      required:
+      - publicObjectArrayField
+      properties:
+        publicObjectArrayField:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/FieldClass"
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      required:
+      - publicObjectArrayField
+      properties:
+        publicObjectArrayField:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+      

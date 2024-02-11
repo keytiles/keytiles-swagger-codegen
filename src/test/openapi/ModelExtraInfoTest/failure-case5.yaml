@@ -1,0 +1,39 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    # In this test we create a private field in BaseClass and SubClass
+    # They are not compatible
+    # This would cause issues with the Getter so we have to fail
+  
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      properties:
+        # one single string errorCode - private field (nullable false), it has a default but it does not matter
+        errorCode:
+          type: string
+          nullable: false
+          default: ''
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      properties:
+        # override error code with incompatible type - also private field
+        errorCode:
+          type: integer
+          nullable: false
+          default: 0
+      

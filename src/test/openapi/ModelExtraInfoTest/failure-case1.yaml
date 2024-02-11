@@ -1,0 +1,61 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    # In this test we create a private List<> field with in-theory compatible content
+    # And in BaseClass this goes into the constructor because we make it mandatory 
+    # even though they are compatible List<> Java still can not manage this so we should detect and fail
+  
+
+    # we will use this in one field as type
+    FieldClass:
+      type: object
+      properties:
+        baseField:
+          type: string
+          nullable: true
+    
+    # and this one in a subclass of the above
+    ExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/FieldClass"
+      type: object
+      properties:
+        extraField:
+          type: string
+          nullable: true
+
+    # this will be our base class
+    BaseClass:
+      type: object
+      required:
+      - privateObjectArrayField
+      properties:
+        privateObjectArrayField:
+          type: array
+          nullable: false
+          items:
+            $ref: "#/components/schemas/FieldClass"
+            
+    # and this is extending BaseClass and overriding the field
+    SubClass:
+      allOf:
+      - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      required:
+      - privateObjectArrayField
+      properties:
+        privateObjectArrayField:
+          type: array
+          nullable: false
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+      

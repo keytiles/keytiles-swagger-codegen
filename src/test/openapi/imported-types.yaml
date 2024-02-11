@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.1
 
 info:
   version: '1.0'
@@ -15,10 +15,13 @@ components:
       type: string
       enum: [apple, orange, mango]
       default: orange
+      #nullable: true
+      
 
     PrimeEnum:
       type: integer
       enum: [1, 2, 3, 5, 7, 11, 13]
+      #nullable: true
 
     NonNullablePrimeEnum:
       type: integer
@@ -33,6 +36,10 @@ components:
       required:
       - required_unconventional_name_baseField
       - requiredOutputIfNonDefaultBaseString
+      - requiredNullableFruitEnumField
+      x-keytiles-serialize-only-if-non-default-properties:
+      - requiredOutputIfNonDefaultBaseString
+      - outputIfNonDefaultBaseInteger
       # in this class we turn off using simple datatypes
       x-keytiles-use-primitive-datatypes-if-possible: false
       properties:
@@ -40,6 +47,7 @@ components:
         # and will enforce a constructor 
         required_unconventional_name_baseField:
           type: integer
+          nullable: true
           # let's enforce the renaming this way (should be default but still...)
           x-keytiles-keep-property-name: false
         # this field can not be NULL but has a default value - so will become a private field with getter/setter
@@ -55,16 +63,64 @@ components:
         # and this field will be public - as it has nothing special
         baseStringField:
           type: string
+          nullable: true
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         requiredOutputIfNonDefaultBaseString:
           type: string
-          x-keytiles-serialize-only-if-non-default: true
+          nullable: true
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         outputIfNonDefaultBaseInteger:
           type: integer
-          x-keytiles-serialize-only-if-non-default: true
+          nullable: true
         # this field is added to test 2 level deep imports
         fruitEnumField:
           $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'
+        # this field is also added to test 2 level deep imports
+        requiredNullableFruitEnumField:
+          $ref: 'imported-types-2nd-level.yaml#/components/schemas/FruitEnum'          
+
+
+    BaseResponseClass:
+      type: object
+      properties:
+        requestReceivedAt:
+          type: integer
+      
+    ContainerClass:
+      type: object
+      properties:
+        id:
+          type: string
+
+    ContainerResponseClass:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponseClass'    
+      type: object
+      properties:
+        container:
+          $ref: '#/components/schemas/ContainerClass'
+
+    DogResponseClass:
+      allOf:
+      - $ref: '#/components/schemas/ContainerResponseClass'    
+      type: object
+      properties:
+        dog:
+          type: string
+
+    # ===============
+    # for testing enum compositions
+    # ===============
+
+          
+    # This is to test imported enumerations          
+    CommonErrorCodes:
+      type: string
+      enum:
+      - common_error_1
+      - common_error_2
+    
+    
+    
       
       

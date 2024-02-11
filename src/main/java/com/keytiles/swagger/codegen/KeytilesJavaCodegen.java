@@ -4,9 +4,12 @@ import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBoo
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,21 +17,27 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.keytiles.swagger.codegen.error.SchemaValidationException;
+import com.keytiles.swagger.codegen.helper.CodegenBugfixAndEnhanceHelper;
+import com.keytiles.swagger.codegen.helper.CodegenUtil;
 import com.keytiles.swagger.codegen.helper.config.ConfigOptionHelper;
 import com.keytiles.swagger.codegen.helper.config.SchemaParamCollection;
-import com.keytiles.swagger.codegen.helper.debug.ModelExplanations;
-import com.keytiles.swagger.codegen.helper.debug.PropertyExplanations;
+import com.keytiles.swagger.codegen.helper.debug.ModelInlineMessages;
+import com.keytiles.swagger.codegen.helper.debug.ModelMessageType;
+import com.keytiles.swagger.codegen.helper.debug.PropertyInlineMessages;
 import com.keytiles.swagger.codegen.helper.maven.MavenExecutionInfo;
 import com.keytiles.swagger.codegen.model.ModelExtraInfo;
 import com.keytiles.swagger.codegen.model.ModelStyle;
 
 import io.swagger.codegen.v3.CliOption;
-import io.swagger.codegen.v3.CodegenConstants;
 import io.swagger.codegen.v3.CodegenModel;
 import io.swagger.codegen.v3.CodegenProperty;
 import io.swagger.codegen.v3.DefaultGenerator;
+import io.swagger.codegen.v3.generators.java.AbstractJavaCodegen;
 import io.swagger.codegen.v3.generators.java.JavaClientCodegen;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
@@ -38,19 +47,43 @@ import io.swagger.v3.oas.models.media.Schema;
  * <p>
  * This is extending and customizing the default {@link JavaClientCodegen} generator
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesCodegen {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(KeytilesJavaCodegen.class);
 
+	private final static String EMPTY_STRING = "";
+
+	public static class OriginalPropertyNames {
+		public String name;
+		public String getter;
+		public String setter;
+		public String nameInCamelCase;
+
+		public OriginalPropertyNames(CodegenProperty fromProperty) {
+			name = fromProperty.name;
+			getter = fromProperty.getter;
+			setter = fromProperty.setter;
+			nameInCamelCase = fromProperty.nameInCamelCase;
+		}
+
+		public void restoreNames(CodegenProperty toProperty) {
+			toProperty.name = name;
+			toProperty.getter = getter;
+			toProperty.setter = setter;
+			toProperty.nameInCamelCase = nameInCamelCase;
+		}
+	}
+
 	public final static String TPLVAR_PUBLIC_FIELDS = "publicFields";
 	public final static String TPLVAR_PRIVATE_FINAL_FIELDS = "privateFinalFields";
 	public final static String TPLVAR_PRIVATE_FIELDS = "privateFields";
 	public final static String TPLVAR_CTOR_NEEDS_CONSTRUCTOR = "needsConstructor";
-	public final static String TPLVAR_CTOR_SUPER_ARGS = "constructorSuperArgs";
-	public final static String TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS = "constructorNonNullablePrivateArgs";
+	public final static String TPLVAR_CTOR_FOR_SUPER_ARGS = "constructorForSuperArgs";
+	public final static String TPLVAR_CTOR_PASS_TO_SUPER_ARGS = "constructorPassToSuperArgs";
+	public final static String TPLVAR_CTOR_OWN_FIELD_ARGS = "constructorOwnFieldArgs";
 	public final static String TPLVAR_CTOR_VALIDATE_NONNULL_VALUE_ARGS = "constructorValidateNonNullArgs";
 	public final static String TPLVAR_CTOR_COMBINED_ARGS = "constructorCombinedArgs";
 
@@ -69,6 +102,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 	protected ModelStyle modelStyle = ModelStyle.simpleConsistent;
 	protected boolean keepPropertyNames = false;
+	protected boolean allowRenameConflictingFields = false;
 	protected boolean usePrimitiveTypesIfPossible = false;
 	protected boolean nullableTagDefaultValue = false;
 	protected boolean addExplanationsToModel = false;
@@ -80,6 +114,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 	// these are the name of the models we should not generate but skip
 	protected Set<String> excludeModelsFromGeneration;
+
+	protected Map<String, CodegenModel> allModels;
 
 	public KeytilesJavaCodegen() {
 		super();
@@ -112,15 +148,24 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		keepNamesOption.setDefault("false");
 		cliOptions.add(keepNamesOption);
 
+		CliOption allowRenameConflictingFieldsOpption = CliOption.newBoolean(OPT_ALLOW_RENAME_CONFLICTING_FIELDS,
+				"If true then Java Codegen 'conflicting property strategy' is allowed to kick in otherwise Codegen will fail the build in case of a detected conflict - default is: FALSE for simpleConsistent style, TRUE for inherited model style");
+		allowRenameConflictingFieldsOpption.setDefault("false");
+		cliOptions.add(allowRenameConflictingFieldsOpption);
+
 		CliOption usePrimitiveTypesOption = CliOption.newBoolean(OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE,
 				"If true then generated model fields will use Java primitive types instead of wrapper types - whenever it is possible - default is: TRUE");
 		usePrimitiveTypesOption.setDefault("false");
 		cliOptions.add(usePrimitiveTypesOption);
 
+		/*
+		 * mmm not a good idea... let's remove
+		 *
 		CliOption nullableTagDefaultValueOption = CliOption.newBoolean(OPT_NULLABLE_TAG_DEFAULT_VALUE,
 				"Determines what would the generation assume for 'nullable' flag in Properties if the 'nullable' declaration is not given explicitly - default is: FALSE");
 		nullableTagDefaultValueOption.setDefault("false");
 		cliOptions.add(nullableTagDefaultValueOption);
+		 */
 
 		CliOption addExplanationsOption = CliOption.newBoolean(OPT_ADD_EXPLANATIONS_TO_MODEL,
 				"Very useful debugging feature! If you set it tue true then generator will add comments to the model fields, methods, constructor and explain why it looks as it does  - default is: FALSE");
@@ -167,13 +212,20 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		if (additionalProperties.containsKey(OPT_KEEP_PROPERTY_NAMES)) {
 			keepPropertyNames = Boolean.valueOf(additionalProperties.get(OPT_KEEP_PROPERTY_NAMES).toString());
 		}
+		if (additionalProperties.containsKey(OPT_ALLOW_RENAME_CONFLICTING_FIELDS)) {
+			allowRenameConflictingFields = Boolean
+					.valueOf(additionalProperties.get(OPT_KEEP_PROPERTY_NAMES).toString());
+		} else {
+			// this field has different default - based on modelStyle
+			if (modelStyle == ModelStyle.simpleConsistent) {
+				allowRenameConflictingFields = false;
+			} else {
+				allowRenameConflictingFields = true;
+			}
+		}
 		if (additionalProperties.containsKey(OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
 			usePrimitiveTypesIfPossible = Boolean
 					.valueOf(additionalProperties.get(OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE).toString());
-		}
-		if (additionalProperties.containsKey(OPT_NULLABLE_TAG_DEFAULT_VALUE)) {
-			nullableTagDefaultValue = Boolean
-					.valueOf(additionalProperties.get(OPT_NULLABLE_TAG_DEFAULT_VALUE).toString());
 		}
 		if (additionalProperties.containsKey(OPT_ADD_EXPLANATIONS_TO_MODEL)) {
 			addExplanationsToModel = Boolean
@@ -240,27 +292,25 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		ConfigOptionHelper.preprocessOpenAPIHook(this, openAPI);
 	}
 
-	/**
-	 * This is the method which converts the object property schema into a CodegenProperty
-	 *
-	 * {@inheritDoc}
-	 */
-	@Override
-	public CodegenProperty fromProperty(String name, Schema propertySchema) {
-		CodegenProperty prop = super.fromProperty(name, propertySchema);
-
-		return prop;
-	}
-
-	@Override
-	public Map<String, Object> postProcessOperations(Map<String, Object> objs) {
-		Map<String, Object> result = super.postProcessOperations(objs);
-		return result;
-	}
-
 	@Override
 	public String apiFilename(String templateName, String tag) {
 		return super.apiFilename(templateName, tag);
+	}
+
+	/**
+	 * Enums are renamed if they have common prefixes - somehow, magically<br>
+	 * As reported: https://github.com/swagger-api/swagger-codegen/issues/7725 and
+	 * https://github.com/swagger-api/swagger-codegen/issues/5932 they marked as fixed but apparently
+	 * not...
+	 * <p>
+	 * We override this method to enforce turn of prefix crap entirely for now I also filed
+	 * https://github.com/swagger-api/swagger-codegen-generators/issues/1075 asking why such a mechanism
+	 * exists?
+	 */
+	@Override
+	public String findCommonPrefixOfVars(List<Object> vars) {
+		// return super.findCommonPrefixOfVars(vars);
+		return EMPTY_STRING;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -272,6 +322,22 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		model.imports.remove("Schema");
 		model.imports.remove("ApiModelProperty");
 		model.imports.remove("ApiModel");
+
+		model.vendorExtensions.put(X_MODEL_STATE, ModelState.created);
+
+		// this is an early stage stuff for models which were actually defined in the schema(s)
+		// it does not contain the "fabricated" models at this point
+		CodegenBugfixAndEnhanceHelper.markOwnModel(model, this);
+
+		// and also let's start to collect models early
+		/*
+		 * let's dont do this yet - we do it later
+		 *
+		if (allModels == null) {
+			allModels = new HashMap<>();
+		}
+		allModels.put(model.name, model);
+		*/
 
 		return model;
 	}
@@ -287,39 +353,167 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
 		super.postProcessModelProperty(model, property);
 
+		CodegenBugfixAndEnhanceHelper.validateOnlySupportedVendorAttributesAreUsedOnModelProperty(this, model,
+				property);
+
 		// let's hook in the explanations if feature is requested
 		if (addExplanationsToModel) {
 			// we will simply create instances on every model and property
-			ModelExplanations.getOrCreateExplanations(model);
-			PropertyExplanations.getOrCreateExplanations(property);
+			ModelInlineMessages.getOrCreateMessages(model, ModelMessageType.EXPLANATION);
+			PropertyInlineMessages.getOrCreateMessages(property, ModelMessageType.EXPLANATION);
 		}
 
-		if ("ContainerQueryRangeResponseClass".equals(model.name)) {
+		if ("StatApiEndpointProblemClass".equals(model.name)) {
 			LOGGER.info("buu");
 		}
 
-		// let's start with this! as follow up methods might depend on isNullable()...
-		support_nullableTagDefaultValue(model, property);
+		// if ("arrayFieldWithDefault".equals(property.baseName)
+		// || "objectArrayFieldWithDefault".equals(property.baseName)) {
+		// LOGGER.info("buu");
+		// }
 
-		support_outputOnlyIfNonDefaultFlag(model, property);
+		support_outputOnlyIfNonDefault(model, property);
 		support_keepPropertyNames(model, property);
 
 		support_usePrimitiveTypesIfPossible(model, property);
+
+		support_arrayDefaultValue(model, property);
+		support_mapDefaultValue(model, property);
+
 	}
 
-	protected void support_outputOnlyIfNonDefaultFlag(CodegenModel model, CodegenProperty property) {
-		boolean addJsonInclude_NonDefault = false;
+	protected void support_mapDefaultValue(CodegenModel model, CodegenProperty property) {
+		if (!property.getIsMapContainer()) {
+			// we have nothing to do - not an array
+			return;
+		}
+		// does it have a default set in schema?
+		if (!CodegenUtil.hasPropertyUserAssignedDefaultValue(model, property)) {
 
-		if (getBooleanValue(property, X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG)) {
-			addJsonInclude_NonDefault = true;
+			// OK this array does not have any default items
+			// if the property is nullable it does not make sense to create an ArrayList object so lets null it
+			// out
+			if (property.nullable) {
+				property.defaultValue = "null";
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"this map does not have default and nullable - so let's keep it on NULL then");
+			}
+
+			if (CodegenUtil.hasPropertyDefaultValue(model, property)) {
+				// just let the user know that Codegen has assigned an empty value to this
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"non-nullable property so Codegen applied a default empty map to it automatically because it is possible with this type");
+			}
+
+			return;
+		} else {
+			throw new SchemaValidationException("The '" + model.name + "." + property.baseName
+					+ "' translates into a Map and you added 'default' value to that. This is not supported well so please remove the default value!");
+		}
+	}
+
+	/**
+	 * If the property is an Array and it has a default value in the schema then we will use that - so
+	 * we get an array with appropriate content
+	 *
+	 */
+	@SuppressWarnings("unchecked")
+	protected void support_arrayDefaultValue(CodegenModel model, CodegenProperty property) {
+		if (!property.getIsArrayModel() && !property.getIsListContainer()) {
+			// we have nothing to do - not an array
+			return;
+		}
+		// does it have a default set in schema?
+		if (!CodegenUtil.hasPropertyUserAssignedDefaultValue(model, property)) {
+
+			// OK this array does not have any default items
+			// if the property is nullable it does not make sense to create an ArrayList object so lets null it
+			// out
+			if (property.nullable) {
+				property.defaultValue = "null";
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"this array does not have default and nullable - so let's keep it on NULL then");
+			}
+
+			if (CodegenUtil.hasPropertyDefaultValue(model, property)) {
+				// just let the user know that Codegen has assigned an empty value to this
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"non-nullable property so Codegen applied a default empty array to it automatically because it is possible with this type");
+			}
+
+			return;
+		}
+
+		// OK so this is an array and has default value defined in schema - let's get that!
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		HashMap<String, Object> parseResult = null;
+		Exception parsingException = null;
+		try {
+			parseResult = objectMapper.readValue(property.jsonSchema, HashMap.class);
+		} catch (Exception e) {
+			parsingException = e;
+		}
+		Preconditions.checkState(parseResult != null,
+				"Oops it looks we failed to json parse $ref attribute at property %s.%s! jsonSchema\n%s\nlead to error: %s",
+				model.name, property.baseName, property.jsonSchema, parsingException);
+
+		List<Object> defaultValues = (List<Object>) parseResult.get("default");
+
+		// for now we just support primitive types
+		if (defaultValues.size() > 0) {
+			Class<?> itemClass = defaultValues.get(0).getClass();
+			if (!String.class.equals(itemClass) && !Boolean.class.equals(itemClass)
+					&& !Number.class.isAssignableFrom(itemClass)) {
+
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.WARNING,
+						"default value was set but for now we just support primitive types in default array - we skipped this one");
+				return;
+			}
+
+			PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+					"default array value was set in schema - applied here");
+
+			// OK let's create the string representation of the item list
+			String jsonStr = null;
+			try {
+				jsonStr = objectMapper.writeValueAsString(defaultValues);
+			} catch (JsonProcessingException e) {
+				// oops
+				throw new IllegalStateException("We failed to produce array default value of " + model.name + "."
+						+ property.baseName + " due to json serialization error: " + e);
+			}
+			// let's string hack a bit! ;-)
+			jsonStr = jsonStr.replace("[", "").replace("]", "");
+			property.defaultValue = property.defaultValue.replace("<>()", "<>(Arrays.asList(" + jsonStr + "))");
+		}
+
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void support_outputOnlyIfNonDefault(CodegenModel model, CodegenProperty property) {
+		List<String> serializeOnlyIfNonDefaultProperties = null;
+		if (model.getVendorExtensions().containsKey(X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES)) {
+			// if set on Model level then it takes precedence over globl option
+			serializeOnlyIfNonDefaultProperties = (List<String>) model.getVendorExtensions()
+					.get(X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES);
+		}
+
+		boolean addJsonInclude_NonDefault = serializeOnlyIfNonDefaultProperties != null
+				&& serializeOnlyIfNonDefaultProperties.contains(property.baseName);
+
+		if (addJsonInclude_NonDefault) {
 			if (additionalProperties.containsKey("jackson")) {
 				model.imports.add("JsonInclude");
 				model.imports.add("JsonInclude.Include");
 
 				LOGGER.info("model {}, field '{}': due to {} setting necessary annotations will be added", model.name,
-						property.baseName, X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG);
-				PropertyExplanations.appendToProperty(property, "'" + X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG
-						+ ": true' is added to this property - so necessary annotations added here OR to the getter");
+						property.baseName, X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES);
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"listed in '" + X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES
+								+ "' - so necessary annotations added here OR to the getter");
 
 			} else {
 				// TODO does this have a Gson alternative maybe???
@@ -327,21 +521,22 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		}
 
 		// finally write back the result - so the template rendering can also see that if needed
-		property.getVendorExtensions().put(X_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG, addJsonInclude_NonDefault);
+		property.getVendorExtensions().put(X_COMPUTED_PROPERTY_SERIALIZE_ONLY_IF_NON_DEFAULT_FLAG,
+				addJsonInclude_NonDefault);
 	}
 
 	protected void support_keepPropertyNames(CodegenModel model, CodegenProperty property) {
 		boolean modelKeepPropertyNames = keepPropertyNames;
 		boolean keepPropertyName = keepPropertyNames;
 
-		if (model.getVendorExtensions().containsKey(X_KEEP_PROPERTY_NAMES_FLAG)) {
+		if (model.getVendorExtensions().containsKey(X_OBJECT_KEEP_PROPERTY_NAMES_FLAG)) {
 			// if set on Model level then it takes precedence over globl option
-			modelKeepPropertyNames = getBooleanValue(model, X_KEEP_PROPERTY_NAMES_FLAG);
+			modelKeepPropertyNames = getBooleanValue(model, X_OBJECT_KEEP_PROPERTY_NAMES_FLAG);
 		}
 
 		// property level flag takes precedence here - if set
-		if (property.getVendorExtensions().containsKey(X_KEEP_PROPERTY_NAME_FLAG)) {
-			keepPropertyName = getBooleanValue(property, X_KEEP_PROPERTY_NAME_FLAG);
+		if (property.getVendorExtensions().containsKey(X_PROPERTY_KEEP_PROPERTY_NAME_FLAG)) {
+			keepPropertyName = getBooleanValue(property, X_PROPERTY_KEEP_PROPERTY_NAME_FLAG);
 		} else {
 			// if not set then inherits from Model level
 			keepPropertyName = modelKeepPropertyNames;
@@ -356,23 +551,23 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				LOGGER.info(
 						"model {}, field '{}': due to 'keepPropertyName' settings original name is kept and getter '{}' / setter '{}' will be used",
 						model.name, property.baseName, property.getter, property.setter);
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name is kept");
-				PropertyExplanations.appendToGetter(property,
+				PropertyInlineMessages.appendToGetter(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name of field is kept and for getter we go with 'get_<fieldName>' pattern");
-				PropertyExplanations.appendToSetter(property,
+				PropertyInlineMessages.appendToSetter(property, ModelMessageType.EXPLANATION,
 						"due to 'keepPropertyName' settings original name of field is kept and for setter we go with 'set_<fieldName>' pattern");
 			} else {
 				LOGGER.info("model {}, field '{}': name is changed to '{}' and getter '{}' / setter '{}' will be used",
 						model.name, property.baseName, property.name, property.getter, property.setter);
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"name is changed, in schema the original name is: '" + property.baseName + "'");
 			}
 		}
 
 		// finally write back the result - so the template rendering can also see that if needed
-		property.getVendorExtensions().put(X_KEEP_PROPERTY_NAME_FLAG, keepPropertyName);
-		model.getVendorExtensions().put(X_KEEP_PROPERTY_NAMES_FLAG, modelKeepPropertyNames);
+		property.getVendorExtensions().put(X_PROPERTY_KEEP_PROPERTY_NAME_FLAG, keepPropertyName);
+		model.getVendorExtensions().put(X_OBJECT_KEEP_PROPERTY_NAMES_FLAG, modelKeepPropertyNames);
 	}
 
 	protected String getPrimitiveTypeDefaultValue(String primitiveType) {
@@ -432,42 +627,45 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		boolean canUsePrimitiveType = canNotUsePrimitiveTypeReason == null;
 
 		// OK, now check if we need/want to use primitive type
-		boolean usePrimitiveType = getBooleanValue(property, X_USE_PRIMITIVE_TYPE);
-		boolean usePrimitiveTypeIfPossible = getBooleanValue(model, X_USE_PRIMITIVE_TYPES_IF_POSSIBLE)
+		boolean usePrimitiveType = getBooleanValue(property, X_PROPERTY_USE_PRIMITIVE_TYPE);
+		boolean usePrimitiveTypeIfPossible = getBooleanValue(model, X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)
 				|| this.usePrimitiveTypesIfPossible;
 
 		// let's evaluate...
 
 		boolean primitiveTypeUsed = false;
 		if (usePrimitiveType) {
+			// OK so user said: do it! I need it here!
 			if (canUsePrimitiveType) {
 				primitiveTypeUsed = true;
-				PropertyExplanations.appendToProperty(property,
-						"primitive type is used because it is enforced on property level by '" + X_USE_PRIMITIVE_TYPE
-								+ ": true' flag");
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+						"primitive type is used because it is enforced on property level by '"
+								+ X_PROPERTY_USE_PRIMITIVE_TYPE + ": true' flag");
 			} else {
 				// this is a strong failure!
-				throw new IllegalStateException("unsatisfiable wish - generation must abort! In model '" + model.name
-						+ "', field '" + property.baseName
+				throw new SchemaValidationException("unsatisfiable wish - generation must abort! In model '"
+						+ model.name + "', field '" + property.baseName
 						+ "' it was told to use primitive data type but it is not possible because: "
 						+ canNotUsePrimitiveTypeReason);
 			}
 		}
 		if (!primitiveTypeUsed && usePrimitiveTypeIfPossible) {
+			// OK so user said: do it if possible, but if not then leave it
 			if (canUsePrimitiveType) {
 				primitiveTypeUsed = true;
 
-				if (getBooleanValue(model, X_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
-					PropertyExplanations.appendToProperty(property, "primitive type is used because a) it can b) '"
-							+ X_USE_PRIMITIVE_TYPES_IF_POSSIBLE + ": true' is set on parent object");
+				if (getBooleanValue(model, X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE)) {
+					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+							"primitive type is used because a) it can b) '" + X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE
+									+ ": true' is set on parent object");
 				} else {
-					PropertyExplanations.appendToProperty(property,
+					PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 							"primitive type is used because a) it can b) option '" + OPT_USE_PRIMITIVE_TYPES_IF_POSSIBLE
 									+ "=true' is used in generator setup");
 				}
 
 			} else {
-				PropertyExplanations.appendToProperty(property,
+				PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
 						"however we should use primitive type but we can not for this field because: "
 								+ canNotUsePrimitiveTypeReason);
 
@@ -484,16 +682,6 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 	}
 
-	protected void support_nullableTagDefaultValue(CodegenModel model, CodegenProperty property) {
-		// if ("g_eTy".equals(property.baseName)) {
-		// LOGGER.info("buuu");
-		// }
-		boolean nullableIsPresent = property.jsonSchema.contains("\"nullable\"");
-		if (!nullableIsPresent) {
-			property.setNullable(nullableTagDefaultValue);
-		}
-	}
-
 	@Override
 	public String getModelFullyQualifiedName(String modelName) {
 		String fqName = ignoreImportMapping ? null : importMapping.get(modelName);
@@ -503,22 +691,430 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		return fqName;
 	}
 
+	/**
+	 * We override this method because this guy in the Java generation is actually detecting
+	 * "conflicting" field names and renaming them automatically. We want to be able to capture these
+	 * renames and mark those vars as these auto-renames definitely lead to some side effects. Makes the
+	 * generated models fuzzy and ugly - so maybe we want to fail the build in these cases
+	 *
+	 * note: the renaming mechanism in this method also had problems. As a contribution code fix was
+	 * done and ticket https://github.com/swagger-api/swagger-codegen-generators/issues/1066 was raised
+	 */
 	@Override
-	public Map<String, Object> postProcessModels(Map<String, Object> objs) {
-		Map<String, Object> models = super.postProcessModels(objs);
-		return models;
+	protected void fixUpParentAndInterfaces(CodegenModel codegenModel, Map<String, CodegenModel> allModels) {
+		// if ("DogResponseClass".equals(codegenModel.name) ||
+		// "ExtendedFieldClass".equals(codegenModel.name)) {
+		// LOGGER.info("buu");
+		// }
+
+		// in order being able to revert the renames calling super. will cause we need to store a copy of
+		// the original vars
+		// This way we can detect renames later and revert them
+
+		Map<String, OriginalPropertyNames> copyOfProperties = new HashMap<>();
+		for (CodegenProperty codegenProperty : codegenModel.vars) {
+			OriginalPropertyNames originalNames = new OriginalPropertyNames(codegenProperty);
+			copyOfProperties.put(codegenProperty.baseName, originalNames);
+		}
+
+		// now let's invoke super
+		super.fixUpParentAndInterfaces(codegenModel, allModels);
+
+		/*
+		 * ========= remove BEGIN
+		 * remove this once https://github.com/swagger-api/swagger-codegen-generators/issues/1066 is fixed
+		 */
+
+		// let's restore renames
+		for (CodegenProperty codegenProperty : codegenModel.vars) {
+			OriginalPropertyNames originalNames = copyOfProperties.get(codegenProperty.baseName);
+			if (!originalNames.name.equals(codegenProperty.name)) {
+				originalNames.restoreNames(codegenProperty);
+			}
+		}
+		// and apply fixed method
+		fixOf1066_fixUpParentAndInterfaces(codegenModel, allModels);
+
+		/*
+		 * ========= remove END
+		 */
+
+		// now let's recognize what was renamed and mark them!
+		for (CodegenProperty codegenProperty : codegenModel.vars) {
+			OriginalPropertyNames originalNames = copyOfProperties.get(codegenProperty.baseName);
+			if (!originalNames.name.equals(codegenProperty.name)) {
+				codegenProperty.vendorExtensions.put(X_PROPERTY_CONFLICTING_AND_RENAMED, true);
+				codegenProperty.vendorExtensions.put(X_PROPERTY_ORIGINAL_NAMES, originalNames);
+
+				// let's also collect info about conflicting with what and where?
+				CodegenModel conflictingModel = null;
+				CodegenModel parentModel = codegenModel.parentModel;
+				while (parentModel != null) {
+					if (parentModel.vars == null || parentModel.vars.isEmpty()) {
+						parentModel = parentModel.parentModel;
+						continue;
+					}
+					boolean hasConflict = parentModel.vars.stream()
+							.anyMatch(parentProperty -> (parentProperty.name.equals(originalNames.name)
+									|| parentProperty.getGetter().equals(originalNames.getter)
+									|| parentProperty.getSetter().equals(originalNames.setter)
+											&& !parentProperty.datatype.equals(codegenProperty.datatype)));
+					if (hasConflict) {
+						conflictingModel = parentModel;
+						break;
+					}
+					parentModel = parentModel.parentModel;
+				}
+
+				// let's add some precaution...
+				Preconditions.checkState(conflictingModel != null, "Oops! We have a bug...");
+
+				codegenProperty.vendorExtensions.put(X_PROPERTY_CONFLICTING_MODEL, conflictingModel);
+
+				// add some field comments
+				CodegenProperty superProperty = CodegenUtil.getPropertyByBaseName(conflictingModel,
+						codegenProperty.baseName);
+				PropertyInlineMessages.appendToProperty(codegenProperty, ModelMessageType.EXPLANATION,
+						"overriding '" + conflictingModel.name + "." + superProperty.name + "'");
+			}
+		}
+
+	}
+
+	/**
+	 * TEMPORARY METHOD! Until https://github.com/swagger-api/swagger-codegen-generators/issues/1066 is
+	 * not fixed, this method mimics the fix. Remove this once the fix is in place!
+	 *
+	 * @param codegenModel
+	 * @param allModels
+	 */
+	private void fixOf1066_fixUpParentAndInterfaces(CodegenModel codegenModel, Map<String, CodegenModel> allModels) {
+		if (codegenModel.vars == null || codegenModel.vars.isEmpty() || codegenModel.parentModel == null) {
+			return;
+		}
+
+		for (CodegenProperty codegenProperty : codegenModel.vars) {
+
+			CodegenModel parentModel = codegenModel.parentModel;
+
+			while (parentModel != null) {
+				if (parentModel.vars == null || parentModel.vars.isEmpty()) {
+					parentModel = parentModel.parentModel;
+					continue;
+				}
+				boolean hasConflict = parentModel.vars.stream()
+						.anyMatch(parentProperty -> (parentProperty.name.equals(codegenProperty.name)
+								|| parentProperty.getGetter().equals(codegenProperty.getGetter())
+								|| parentProperty.getSetter().equals(codegenProperty.getSetter())
+										&& !parentProperty.datatype.equals(codegenProperty.datatype)));
+				if (hasConflict) {
+					codegenProperty.name = toVarName(codegenModel.name + "_" + codegenProperty.name);
+					codegenProperty.nameInCamelCase = camelize(codegenProperty.name, false);
+					codegenProperty.getter = toGetter(codegenProperty.name);
+					codegenProperty.setter = toSetter(codegenProperty.name);
+					break;
+				}
+				parentModel = parentModel.parentModel;
+			}
+
+		}
+	}
+
+	/**
+	 * This method can just run after {@link #fixUpParentAndInterfaces(CodegenModel, Map)} is finished
+	 * in all models! The method scans through all model all properties and where it detects
+	 * {@link IKeytilesCodegen#X_PROPERTY_CONFLICTING_AND_RENAMED} then it will check compatibility btw
+	 * the model's property and the overriden super property and adding the result of this compatibility
+	 * check into {@link IKeytilesCodegen#X_PROPERTY_SUPER_IS_ASSIGNABLE} flag
+	 *
+	 * @param allModels
+	 */
+	private void enrichModelPropertiesWithSuperIsAssignableFlag(Map<String, CodegenModel> allModels) {
+
+		for (CodegenModel codegenModel : allModels.values()) {
+
+			CodegenUtil.validateModelState(codegenModel, ModelState.baseCodegenFullyEnriched);
+
+			if ("DogResponseClass".equals(codegenModel.name) || "ExtendedFieldClass".equals(codegenModel.name)) {
+				LOGGER.info("buu");
+			}
+
+			// now let's recognize what was renamed and mark them!
+			for (CodegenProperty property : codegenModel.vars) {
+				if (property.getBooleanValue(X_PROPERTY_CONFLICTING_AND_RENAMED)) {
+					CodegenModel conflictingModel = (CodegenModel) property.vendorExtensions
+							.get(X_PROPERTY_CONFLICTING_MODEL);
+
+					CodegenUtil.validateModelState(conflictingModel, ModelState.baseCodegenFullyEnriched);
+
+					CodegenProperty superProperty = CodegenUtil.getPropertyByBaseName(conflictingModel,
+							property.baseName);
+					boolean isSuperAssignable = CodegenUtil.isPropertyAssignableFromProperty(superProperty, property,
+							allModels.values());
+
+					property.vendorExtensions.put(IKeytilesCodegen.X_PROPERTY_SUPER_IS_ASSIGNABLE, isSuperAssignable);
+
+				}
+			}
+
+			codegenModel.vendorExtensions.put(X_MODEL_STATE, ModelState.fullyEnriched);
+
+		}
+	}
+
+	/**
+	 * This method works on {@link ModelState#fullyEnriched} models. Iterating over all of the models
+	 * and making final decisions about field names.
+	 * <p>
+	 * {@link #fixUpParentAndInterfaces(CodegenModel, Map)} might rename conflicting fields (marked with
+	 * {@link IKeytilesCodegen#X_PROPERTY_CONFLICTING_AND_RENAMED} flag) but in many cases we can rename
+	 * those fields back.
+	 *
+	 */
+	private void finalizeModelFieldNamesAndFieldMethods(CodegenModel codegenModel, ModelExtraInfo extraInfo) {
+
+		String methodNameForLog = "finalizeModelFieldNamesAndFieldMethods";
+
+		CodegenUtil.validateModelState(codegenModel, ModelState.fullyEnriched);
+
+		for (CodegenProperty property : codegenModel.vars) {
+			if (property.getBooleanValue(X_PROPERTY_CONFLICTING_AND_RENAMED)) {
+
+				OriginalPropertyNames originalNames = (OriginalPropertyNames) property.vendorExtensions
+						.get(X_PROPERTY_ORIGINAL_NAMES);
+
+				CodegenModel conflictingModel = (CodegenModel) property.vendorExtensions
+						.get(X_PROPERTY_CONFLICTING_MODEL);
+				CodegenProperty superProperty = CodegenUtil.getPropertyByBaseName(conflictingModel, property.baseName);
+				boolean isSuperAssignable = property.getBooleanValue(IKeytilesCodegen.X_PROPERTY_SUPER_IS_ASSIGNABLE);
+
+				ModelExtraInfo conflictingModelExtraInfo = ModelExtraInfo.getExtraInfo(conflictingModel, this);
+
+				// the first thing we need to check is: methods related to deal with the field!
+				// its important because they can cause headache if overloading would not work
+				String propertyVisibility = extraInfo.getVisibilityOfPropertyWithBaseName(property.baseName);
+				String superPropertyVisibility = conflictingModelExtraInfo
+						.getVisibilityOfPropertyWithBaseName(property.baseName);
+
+				boolean hasGetterMethod = !"public".equals(propertyVisibility);
+				boolean superHasGetterMethod = !"public".equals(superPropertyVisibility);
+				boolean hasSetterMethod = !"public".equals(propertyVisibility)
+						&& !"private final".equals(propertyVisibility);
+				boolean superHasSetterMethod = !"public".equals(superPropertyVisibility)
+						&& !"private final".equals(superPropertyVisibility);
+				// generic types like List<?> or Map<?,?> are definitely causing issues with method overriding
+				// so we must know if the datatype is generic...
+				boolean isGenericDatatype = property.getIsListContainer() || property.getIsMapContainer()
+						|| property.getIsArrayModel();
+				boolean superIsGenericDatatype = superProperty.getIsListContainer() || superProperty.getIsMapContainer()
+						|| property.getIsArrayModel();
+
+				// as now we collected some info about the properties, let's phrase some rules!
+				// we definitely prefer to rename back the field in all possible cases!
+				boolean renameFieldBack = true;
+				List<String> reasons = new LinkedList<>();
+
+				if (hasGetterMethod && superHasGetterMethod) {
+					if (!isSuperAssignable) {
+						reasons.add("getter methods would collide - datatypes are not compatible");
+						renameFieldBack = false;
+					} else if (isGenericDatatype) {
+						// so we have List<> or Map<>
+						// and OK the values are compatible, but there would be problems caused by the generic...
+						reasons.add(
+								"getter methods would collide - although types are compatible due to generic type compiler would indicate incompatibility");
+						renameFieldBack = false;
+					}
+				}
+
+				if (hasSetterMethod && superHasSetterMethod) {
+					if (isGenericDatatype) {
+						reasons.add(
+								"setter methods would collide - due to generic type compiler would indicate 'name clash' error");
+					}
+				}
+
+				// finally, at least for know let's do not allow changing visibilities!
+				if (!superPropertyVisibility.equals(propertyVisibility)) {
+					renameFieldBack = false;
+					reasons.add("in " + conflictingModel.name + " the field is '" + superPropertyVisibility
+							+ "' while in " + codegenModel.name + " it is '" + propertyVisibility
+							+ "' which would result in strange model");
+				}
+
+				// rename it back if decided
+				if (renameFieldBack) {
+					// let's restore names
+					originalNames.restoreNames(property);
+
+				} else {
+					LOGGER.warn("{}: can not rename back {}.{} to {} because: {}", methodNameForLog, codegenModel.name,
+							property.name, originalNames.name, reasons);
+
+					// is this allowed?
+					if (!allowRenameConflictingFields) {
+						throw new SchemaValidationException("Model '" + codegenModel.name + " extends "
+								+ conflictingModel.name + "' and property '" + property.baseName
+								+ "' overlaps between them.\nWith the current property setup this would cause the following problems: "
+								+ reasons
+								+ "\nYou might be able to avoid this happening - check section 'Java limitations with generating models' in README!");
+					}
+
+					// also add comment to the field
+					for (String reason : reasons) {
+						PropertyInlineMessages.appendToProperty(property, ModelMessageType.EXPLANATION,
+								"renamed to '" + property.name + "' because otherwise " + reason);
+					}
+				}
+			}
+		}
+
 	}
 
 	/**
 	 * On this hook the models are already complete - even {@link CodegenModel#parentModel} is available
 	 * BUT Do not change {@link CodegenModel#imports} here - as that is already too late... If you need
 	 * that you need to hack through {@link #postProcessAllModels(Map)} hook!
+	 * <p>
+	 * note FYI: this is invoked from early stage of {@link #postProcessAllModels(Map)} logic
 	 *
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void postProcessAllCodegenModels(Map<String, CodegenModel> allModels) {
+		allModels.values().forEach(model -> {
+			model.vendorExtensions.put(X_MODEL_STATE, ModelState.baseCodegenFullyEnriched);
+		});
+
 		super.postProcessAllCodegenModels(allModels);
+
+		enrichModelPropertiesWithSuperIsAssignableFlag(allModels);
+
+		// let's save it! and let's save it as a pointer and not just a copy!
+		this.allModels = allModels;
+
+		allModels.values().forEach(model -> {
+			CodegenBugfixAndEnhanceHelper.validateOnlySupportedVendorAttributesAreUsedOnModel(this, model);
+			CodegenBugfixAndEnhanceHelper.markOwnModel(model, this);
+		});
+
+		CodegenBugfixAndEnhanceHelper.fixReferredModelAttributesInheritance(allModels);
+		CodegenBugfixAndEnhanceHelper.validateModelsAgainstKnownContradictions(allModels);
+		CodegenBugfixAndEnhanceHelper.ensureNoConflictBetweenNameOfOwnModelsAndImportedModels(allModels, this);
+
+	}
+
+	/**
+	 * During this work we noticed issues even with the orig {@link JavaClientCodegen}... This method
+	 * validates the model and breaks the build in case it is recognizing a situation the generation
+	 * would break or would be wrong. Then it will raise an exception.
+	 *
+	 * @param theModel
+	 *            the model candidate
+	 */
+	protected void canModelBeGenerated(CodegenModel theModel) {
+
+		if (theModel.parentModel != null && theModel.parentModel.getIsEnum()) {
+			// it is not possible to extend an enum
+
+			throw new SchemaValidationException("We can not generate this schema :-( We ran into a class '"
+					+ theModel.name + "' which is extending an enum '" + theModel.parent
+					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nProbably this is caused by an 'allOf' composition referring in an Enum. You need to remove it and do your schema differently!");
+		}
+
+	}
+
+	/**
+	 * This is recognizing anyOf, oneOf, allOf (well this last one not for now - see
+	 * .canModelBeGenerated()) compositions of Enums and merging/replacing them with one Enum
+	 *
+	 * @param objs
+	 *            the input of the {@link AbstractJavaCodegen#postProcessAllModels(Map)} method
+	 * @return modified map - it is possible some models (fabricated) are removed from the generation
+	 */
+	@SuppressWarnings("unchecked")
+	protected Map<String, Object> support_enumCompositions(Map<String, Object> objs) {
+
+		// let's iterate over all entries and check / hunt for enum composition models!
+
+		// we will collect up all stuff we replaced during this turn
+		Map<String, CodegenModel> replacedEnums = new HashMap<>();
+
+		objs.entrySet().forEach(modelEntry -> {
+			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
+
+			if ("ExtendedErrorCodesAnyOf".equals(theModel.name)) {
+				LOGGER.info("buu");
+			}
+
+			CodegenModel joinedEnumModel = null;
+			try {
+				// this can return null - if not appropriate for merging
+				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(theModel, addExplanationsToModel);
+			} catch (Exception e) {
+				throw new IllegalStateException(
+						"Oops! Failed to merge Enum composition in model '" + theModel + "': " + e.getMessage(), e);
+			}
+
+			// let's replace the type
+			if (joinedEnumModel != null) {
+				CodegenUtil.replaceModelDefinitionInPostProcessAllModelsInput(objs, modelEntry.getKey(),
+						joinedEnumModel);
+				replacedEnums.put(modelEntry.getKey(), joinedEnumModel);
+			}
+		});
+
+		// next step: let's discover enums who are equal to each other so potentially they can be replaced
+		// with each other
+		replacedEnums.entrySet().forEach(modelEntry -> {
+			Set<String> equalsTo = new HashSet<>();
+			replacedEnums.entrySet().forEach(modelEntry2 -> {
+				if (modelEntry.getValue() != modelEntry2.getValue()
+						&& CodegenUtil.areEnumModelsEqual(modelEntry.getValue(), modelEntry2.getValue())) {
+					equalsTo.add(modelEntry2.getKey());
+				}
+			});
+			modelEntry.getValue().getVendorExtensions().put(IKeytilesCodegen.X_MODEL_ENUM_EQUALS_TO, equalsTo);
+
+			// boolean schemaDefined = modelEntry.getValue()
+			// .getBooleanValue(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM);
+			// LOGGER.info("=== enum {} (schema-defined: {}): equals to: {}", modelEntry.getKey(),
+			// schemaDefined,
+			// equalsTo);
+		});
+
+		// and finally lets merge enums!
+		// if there are schema-defined enums which are equal to fabricated enums let's remove the fabricated
+		// enums and repoint usage points to the schema-defined ones
+		Map<String, Object> allProcessedModelsResult = new HashMap<>(objs);
+		replacedEnums.entrySet().forEach(modelEntry -> {
+			if (modelEntry.getValue().getBooleanValue(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM)) {
+				Set<String> equalsToEnums = (Set<String>) modelEntry.getValue().getVendorExtensions()
+						.get(IKeytilesCodegen.X_MODEL_ENUM_EQUALS_TO);
+				if (equalsToEnums != null) {
+					// let's iterate over everyone the enum model is equals to
+					for (String equalsToEnumName : equalsToEnums) {
+						CodegenModel eualsToEnumModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(objs,
+								equalsToEnumName);
+						// if this one is not directly declared then let's replace it with the directly declared (and
+						// equals) one!
+						if (!eualsToEnumModel.getBooleanValue(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM)) {
+							LOGGER.info(
+									"=== replace - fabricated (by Codegen) enum '{}' will be removed and replaced with '{}' as they are equal",
+									eualsToEnumModel.name, modelEntry.getValue().name);
+
+							CodegenUtil.replaceModelReferenceInPostProcessAllModelsInput(objs, equalsToEnumName,
+									modelEntry.getKey(), "enum '" + modelEntry.getKey()
+											+ "' is defined in the schema directly and it equals to the one you defined inline - so field is reusing that one instead of a fabricated type");
+							allProcessedModelsResult.remove(equalsToEnumName);
+						}
+					}
+				}
+
+			}
+		});
+
+		return allProcessedModelsResult;
 	}
 
 	/**
@@ -540,21 +1136,30 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
 		Map<String, Object> allProcessedModels = super.postProcessAllModels(objs);
 
-		if (modelStyle == ModelStyle.simpleConsistent) {
-			// we will scan stuff and add necessary new render template variables
-			allProcessedModels.entrySet().forEach(modelEntry -> {
-				Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
-				CodegenModel theModel = extractModelClassFromPostProcessAllModelsInput(modelEntry);
+		allProcessedModels = support_enumCompositions(allProcessedModels);
 
-				if ("JsonSerializationTestSubclassClass".equals(theModel.name)) {
-					LOGGER.info("buu");
-				}
+		// we will scan stuff and add necessary new render template variables
+		allProcessedModels.entrySet().forEach(modelEntry -> {
+			Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
+			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
+			if ("FruitEnum".equals(theModel.name) || "StatApiEndpointProblemClass".equals(theModel.name)
+					|| "DogResponseClass".equals(theModel.name)) {
+				LOGGER.info("buu");
+			}
+
+			canModelBeGenerated(theModel);
+
+			if (modelStyle == ModelStyle.simpleConsistent) {
 				ModelExtraInfo extraInfo = ModelExtraInfo.getExtraInfo(theModel, this);
 
+				// finishFixUpParentAndInterfaces(theModel, extraInfo);
+				finalizeModelFieldNamesAndFieldMethods(theModel, extraInfo);
+
 				modelMap.put(TPLVAR_CTOR_NEEDS_CONSTRUCTOR, extraInfo.needsConstructor());
-				modelMap.put(TPLVAR_CTOR_SUPER_ARGS, extraInfo.getCtorSuperArguments());
-				modelMap.put(TPLVAR_CTOR_NONNULLABLE_PRIVATE_ARGS, extraInfo.getCtorNonNullablePrivateArguments());
+				modelMap.put(TPLVAR_CTOR_FOR_SUPER_ARGS, extraInfo.getCtorForSuperArguments());
+				modelMap.put(TPLVAR_CTOR_PASS_TO_SUPER_ARGS, extraInfo.getCtorPassToSuperArguments());
+				modelMap.put(TPLVAR_CTOR_OWN_FIELD_ARGS, extraInfo.getCtorOwnFieldArguments());
 				modelMap.put(TPLVAR_CTOR_VALIDATE_NONNULL_VALUE_ARGS, extraInfo.getCtorValidateNonNullValueArguments());
 
 				String ctorArgAnnonation = null;
@@ -572,7 +1177,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				modelMap.put(TPLVAR_PUBLIC_FIELDS, extraInfo.getPublicFields());
 
 				// do we need imports because of super() things?
-				for (CodegenProperty property : extraInfo.getCtorSuperArguments()) {
+				for (CodegenProperty property : extraInfo.getCtorPassToSuperArguments()) {
 					/*
 					* shit! it's too late here to do this... imports for template resolving are already generated
 					* we need a workaround...
@@ -586,20 +1191,32 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 					String mappedType = typeMapping.get(property.baseType);
 					if (mappedType != null) {
 						String fullyQualifiedTypeImport = importMapping.get(mappedType);
-						addImportToModelMapOnPostProcessAllModelsHook(modelMap, fullyQualifiedTypeImport);
+						CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry, fullyQualifiedTypeImport);
 
 						LOGGER.info("model {}: injecting import {} - ", theModel.name, fullyQualifiedTypeImport);
 					}
+
+					// we also need to ensure that all types of all ctor arguments are imported if needed
+					// so now let's focus on the datatype a bit...
+					mappedType = typeMapping.get(property.datatype);
+					if (mappedType == null) {
+						mappedType = property.datatype;
+					}
+					if (mappedType != null) {
+						String fullyQualifiedTypeImport = importMapping.get(mappedType);
+						CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry, fullyQualifiedTypeImport);
+					}
+
 				}
 
 				// do we have non-zero argument constructor?
 				if (extraInfo.needsConstructor()) {
-					addImportToModelMapOnPostProcessAllModelsHook(modelMap,
+					CodegenUtil.addImportToModelMapOnPostProcessAllModelsHook(modelEntry,
 							"com.fasterxml.jackson.annotation.JsonCreator");
 				}
+			}
 
-			});
-		}
+		});
 
 		// as a last step let's drop all stuff from the result which we should exclude
 		Map<String, Object> allProcessedModelsResult = new HashMap<>(allProcessedModels);
@@ -613,51 +1230,12 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		if (mavenExecutionId != null) {
 			MavenExecutionInfo executionInfo = MavenExecutionInfo.getExecutionInfo(mavenExecutionId);
 			allProcessedModelsResult.entrySet().forEach(modelEntry -> {
-				CodegenModel theModel = extractModelClassFromPostProcessAllModelsInput(modelEntry);
+				CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 				executionInfo.registerModel(theModel.name, theModel);
 			});
 		}
 
 		return allProcessedModelsResult;
-	}
-
-	/**
-	 * AttilaW: The presence of this method is definitely a hack... We really should not manipulate
-	 * imports here but can not find better way now...
-	 */
-	@SuppressWarnings("unchecked")
-	protected void addImportToModelMapOnPostProcessAllModelsHook(Map<String, Object> modelMap,
-			String fullyQualifiedTypeImport) {
-		if (fullyQualifiedTypeImport == null) {
-			// simply skip
-			return;
-		}
-
-		List<Map<String, Object>> imports = (List<Map<String, Object>>) modelMap.get("imports");
-
-		// let's scan them through and add only if not added yet!
-		for (Map<String, Object> importItem : imports) {
-			if (fullyQualifiedTypeImport.equals(importItem.get("import"))) {
-				// already added - skip
-				return;
-			}
-		}
-
-		// let's add!
-		Map<String, Object> stupidImportMap = new HashMap<>();
-		stupidImportMap.put("import", fullyQualifiedTypeImport);
-		imports.add(stupidImportMap);
-	}
-
-	@SuppressWarnings("unchecked")
-	protected CodegenModel extractModelClassFromPostProcessAllModelsInput(
-			Map.Entry<String, Object> postProcessModelEntry) {
-		Map<String, Object> modelMap = (Map<String, Object>) postProcessModelEntry.getValue();
-		List<Map<String, Object>> models = (List<Map<String, Object>>) modelMap.get(CodegenConstants.MODELS);
-		Preconditions.checkState(models.size() == 1,
-				"Oops! It looks model '%s' has more (sub)model entries than expected exact 1",
-				postProcessModelEntry.getKey());
-		return (CodegenModel) models.get(0).get("model");
 	}
 
 	@Override
@@ -690,6 +1268,35 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	public List<String> getAddSchemaModelsToImportMappingsFromMavenExecutions() {
 		return addSchemaModelsToImportMappingsFromMavenExecutions == null ? null
 				: new ArrayList<>(addSchemaModelsToImportMappingsFromMavenExecutions);
+	}
+
+	@Override
+	public Set<String> getAllSupportedObjectLevelVendorFieldNames() {
+		return new HashSet<>(Arrays.asList( //
+				X_OBJECT_KEEP_PROPERTY_NAMES_FLAG, //
+				X_OBJECT_SERIALIZE_ONLY_IF_NON_DEFAULT_PROPERTIES, //
+				X_OBJECT_USE_PRIMITIVE_TYPES_IF_POSSIBLE //
+		));
+	}
+
+	@Override
+	public Set<String> getAllSupportedPropertyLevelVendorFieldNames() {
+		return new HashSet<>(Arrays.asList( //
+				X_PROPERTY_KEEP_PROPERTY_NAME_FLAG, //
+				X_PROPERTY_USE_PRIMITIVE_TYPE //
+		));
+	}
+
+	@Override
+	public OpenAPI getOpenApi() {
+		return openAPI;
+	}
+
+	@Override
+	public Map<String, CodegenModel> getAllModels() {
+		Map<String, CodegenModel> allModels = this.allModels == null ? null
+				: Collections.unmodifiableMap(this.allModels);
+		return allModels;
 	}
 
 }

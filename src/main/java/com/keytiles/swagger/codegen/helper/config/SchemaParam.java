@@ -19,7 +19,7 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
  *
  * @see #fromFlatStringDefinition(String, String)
  *
- * @author attil
+ * @author attilaw
  *
  */
 public class SchemaParam {

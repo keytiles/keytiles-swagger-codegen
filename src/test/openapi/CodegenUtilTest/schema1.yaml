@@ -1,0 +1,248 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+    ClassA:
+      type: object
+      properties:
+  
+        # ---- simple fields
+        stringField:
+          type: string
+          nullable: true
+        numberField:
+          type: number
+          nullable: true
+        integerField:
+          type: integer
+          nullable: true
+        booleanField:
+          type: boolean
+          nullable: true
+        objectField:
+          $ref: "#/components/schemas/FieldClass"
+        extendedObjectField:
+          $ref: "#/components/schemas/ExtendedFieldClass"
+        enumField:
+          $ref: "#/components/schemas/EnumFieldClass"
+  
+        # ---- array fields
+        stringArrayField:
+          nullable: true
+          type: array
+          items:
+            type: string
+        numberArrayField:
+          nullable: true
+          type: array
+          items:
+            type: number
+        integerArrayField:
+          nullable: true
+          type: array
+          items:
+            type: integer
+        booleanArrayField:
+          nullable: true
+          type: array
+          items:
+            type: boolean
+        objectArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldClass"
+        extendedObjectArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+        enumArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/EnumFieldClass"
+
+        # ---- map fields
+
+        stringMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+        numberMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: number
+        integerMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: integer
+        booleanMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: boolean
+        objectMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/FieldClass"
+        extendedObjectMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+        enumMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/EnumFieldClass"
+
+
+    ClassB:
+      type: object
+      properties:
+  
+        # ---- simple fields
+        stringField:
+          type: string
+          nullable: true
+        numberField:
+          type: number
+          nullable: true
+        integerField:
+          type: integer
+          nullable: true
+        booleanField:
+          type: boolean
+          nullable: true
+        objectField:
+          $ref: "#/components/schemas/FieldClass"
+        extendedObjectField:
+          $ref: "#/components/schemas/ExtendedFieldClass"
+        enumField:
+          $ref: "#/components/schemas/EnumFieldClass"
+  
+        # ---- array fields
+        stringArrayField:
+          nullable: true
+          type: array
+          items:
+            type: string
+        numberArrayField:
+          nullable: true
+          type: array
+          items:
+            type: number
+        integerArrayField:
+          nullable: true
+          type: array
+          items:
+            type: integer
+        booleanArrayField:
+          nullable: true
+          type: array
+          items:
+            type: boolean
+        objectArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldClass"
+        extendedObjectArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+        enumArrayField:
+          nullable: true
+          type: array
+          items:
+            $ref: "#/components/schemas/EnumFieldClass"
+
+        # ---- map fields
+
+        stringMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+        numberMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: number
+        integerMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: integer
+        booleanMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: boolean
+        objectMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/FieldClass"
+        extendedObjectMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+        enumMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/EnumFieldClass"
+
+
+    
+    # we will use this in one field as type
+    FieldClass:
+      type: object
+      properties:
+        baseField:
+          type: string
+          nullable: true
+
+    # now we extend FieldClass and will also use this
+    ExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/FieldClass"
+      type: object
+      properties:
+        extraField:
+          type: string
+          nullable: true
+
+    # another subclass - further extending class
+    FurtherExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/ExtendedFieldClass"
+      type: object
+      properties:
+        moreExtraField:
+          type: string
+          nullable: true
+
+          
+    EnumFieldClass:
+      type: string
+      enum:
+      - value1
+      - value2
+      

@@ -1,0 +1,145 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+
+    # we will use this in one field as type
+    FieldClass:
+      type: object
+      properties:
+        baseField:
+          type: string
+          nullable: true
+    
+    # we will use this in one field as type
+    NullableFieldClass:
+      type: object
+      nullable: true
+      properties:
+        baseField:
+          type: string
+          nullable: true
+
+    # and this one in a subclass
+    ExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/FieldClass"
+      type: object
+      properties:
+        extraField:
+          type: string
+          nullable: true
+
+    # and this one in a subclass
+    NullableExtendedFieldClass:
+      allOf:
+      - $ref: "#/components/schemas/NullableFieldClass"
+      type: object
+      properties:
+        extraField:
+          type: string
+          nullable: true
+      nullable: true
+
+
+    # ===== Let's deinfe some classes now - these will be the more interesting classes
+
+    # this will be our base class - we will override fields in this
+    BaseClass:
+      type: object
+      properties:
+
+        requestReceivedAt:
+          type: integer
+        # one single string errorCode - public field
+        publicErrorCode:
+          type: string
+          nullable: true
+          default: ''
+
+        # array of String error codes - public, but enforced into the constructor
+        publicErrorCodesArray:
+          type: array
+          items:
+            type: string
+          nullable: true
+
+        # this goes into the constructor (non-nullable, no default)
+        privateDirectOverridenField:
+          $ref: "#/components/schemas/FieldClass"
+        # this also goes into the constructor (non-nullable, no default)
+        privateMoreFarOverridenField:
+          $ref: "#/components/schemas/FieldClass"
+
+        publicDirectOverridenField:
+          $ref: "#/components/schemas/NullableFieldClass"
+        publicMoreFarOverridenField:
+          $ref: "#/components/schemas/NullableFieldClass"
+
+        publicObjectArrayField:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/FieldClass"
+
+
+    # this is an intermediate class
+    SubClass:
+      allOf:
+        - $ref: '#/components/schemas/BaseClass'    
+      type: object
+      required:
+      - publicDirectOverridenField
+      properties:
+        catId:
+          type: integer
+
+        # override single errorCode with incompatible type - public field
+        publicErrorCode:
+          type: integer
+          nullable: true
+
+        # let's override this from the parent class now with a subclass of the field type
+        # this should do some "magic" in the constructor...
+        privateDirectOverridenField:
+          $ref: "#/components/schemas/ExtendedFieldClass"
+        # this field will be enforced into the constructor
+        publicDirectOverridenField:
+          $ref: "#/components/schemas/NullableExtendedFieldClass"
+
+        publicObjectArrayField:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/ExtendedFieldClass"
+
+
+    SubSubClass:
+      allOf:
+      - $ref: '#/components/schemas/SubClass'    
+      type: object
+      properties:
+        dogName:
+          type: string
+          
+        # override array of error codes with incompatible type - public field
+        publicErrorCodesArray:
+          type: array
+          items:
+            type: integer
+          nullable: true
+
+        # let's override these from the parent.parent class now with a subclass of the field type
+        # this should do some "magic" in the constructor...
+        privateMoreFarOverridenField:
+          $ref: "#/components/schemas/ExtendedFieldClass"
+        publicMoreFarOverridenField:
+          $ref: "#/components/schemas/NullableExtendedFieldClass"
+      

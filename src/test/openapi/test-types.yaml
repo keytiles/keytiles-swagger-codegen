@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.1
 
 info:
   version: '1.0'
@@ -9,6 +9,17 @@ paths: {}
 components:
 
   schemas:
+  
+    ReferredObject:
+      type: object
+      properties:
+        prop1:
+          type: string
+          nullable: true
+          default: "buuu"
+        prop2:
+          type: integer
+          default: 5  
 
     # this guy extends the previous (so it also will have a constructor passing over params to base)
     JsonSerializationTestSubclassClass:
@@ -17,6 +28,8 @@ components:
       type: object
       required:
       - requiredBooleanField
+      x-keytiles-serialize-only-if-non-default-properties:
+      - outputIfNonDefaultString
       # in this class we turn on using simple datatypes
       x-keytiles-use-primitive-datatypes-if-possible: true
       properties:
@@ -24,15 +37,18 @@ components:
         # since it has nothing special it will become a ppublic field simply
         unconventional_name_Field:
           type: integer
+          nullable: true
           # let's enforce the renaming this way (should be default but still)
           x-keytiles-keep-property-name: false
         # this will be a public field as it has nothing special
         longField:
           type: integer
           format: int64
+          nullable: true
         # and since this guy is required it will become a private final
         requiredBooleanField:
           type: boolean
+          nullable: true
         # this field can not be NULL but has a default value - so will become a private field with getter/setter
         nonNullInteger:
           type: integer
@@ -47,7 +63,7 @@ components:
         # with this field we can test the 'x-keytiles-serialize-only-if-non-default' feature
         outputIfNonDefaultString:
           type: string
-          x-keytiles-serialize-only-if-non-default: true
+          nullable: true
         
     # This class is just testing simple property level mappings
     # and does not declare any required or readOnly fields
@@ -55,45 +71,54 @@ components:
     SimpleFieldsClass:
       type: object
       x-keytiles-keep-property-names: true
+      x-keytiles-serialize-only-if-non-default-properties:
+      - unconventional_name_Field2
       properties:
         # this field should be renamed - as local 'x-keytiles-keep-property-name' tells it
         unconventional_name_Field1:
           type: integer
+          nullable: true
           x-keytiles-keep-property-name: false
           description: unconventional_name_Field1 field description
         # this field should not be renamed - as it inherits 'x-keytiles-keep-property-names' from Object
         # field should get a @JsonInclude(Include.NON_DEFAULT) annotation
         unconventional_name_Field2:
           type: integer
+          nullable: true
           description: unconventional_name_Field2 field description
-          x-keytiles-serialize-only-if-non-default: true
         # to test it is mapped as long type
         longField:
           type: integer
           format: int64
+          nullable: true
           description: longField field description
         longFieldWithDefault:
           type: integer
           format: int64
           default: 10
+          nullable: true
           description: longFieldWithDefault field description
         # to test it is mapped as double type
         doubleField:
           type: number
           format: double
+          nullable: true
           description: doubleField field description
         doubleFieldWithDefault:
           type: number
           format: double
           default: 10.2
+          nullable: true
           description: doubleFieldWithDefault field description
         inlineEnumField:
           type: string
+          nullable: true
           description: inlineEnumField field description
           enum: [ok, failed, warning]
           example: "ok | warning | failed"
         inlineEnumFieldWithDefault:
           type: string
+          nullable: true
           description: inlineEnumFieldWithDefault field description
           enum: [ok, failed, warning]
           example: "ok | warning | failed"
@@ -106,16 +131,33 @@ components:
         fruitEnumFieldWithDefault:
           $ref: 'imported-types.yaml#/components/schemas/FruitEnumWithDefault'
         primeEnumField:
+          
           $ref: 'imported-types.yaml#/components/schemas/PrimeEnum'
         arrayField:
           type: array
+          nullable: true
           description: 'arrayField field description'
+          items:
+            type: string
+        arrayFieldWithDefault:
+          type: array
+          nullable: true
+          description: 'arrayFieldWithDefault field description'
+          default: ['a','b']
+          items:
+            type: string
+        arrayFieldWithEmptyArrayDefault:
+          type: array
+          nullable: true
+          description: 'arrayFieldWithEmptyArrayDefault field description'
+          default: []
           items:
             type: string
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
         # see: SimpleFieldsClassInlineLangObjectField class
         inlineLangObjectField:
           type: object
+          nullable: true
           description: inlineLangObjectField field description
           properties:
             id:
@@ -176,6 +218,24 @@ components:
           nullable: false
           items:
             type: string
+        arrayFieldWithDefault:
+          type: array
+          description: 'arrayField field description'
+          nullable: false
+          default: ['a','b']
+          items:
+            type: string
+        objectArrayFieldWithDefault:
+          type: array
+          description: 'object arrayField field description'
+          nullable: false
+          default:
+          - prop1: "obj1"
+            prop2: 5
+          - prop1: "obj2"
+            prop2: 15
+          items:
+            $ref: '#/components/schemas/ReferredObject'
         # NOTE: it looks this is externalized (unlike inline enum) by Java codegen...
         # see: SimpleFieldsClassInlineLangObjectField class
         inlineLangObjectField:
@@ -191,7 +251,119 @@ components:
             label:
               type: string
           
+    # This one is testing deep imports working correctly if we have long inheritance
+    CatAndDogResponseClass:
+      allOf:
+      - $ref: 'imported-types.yaml#/components/schemas/DogResponseClass'    
+      type: object
+      properties:
+        cat:
+          type: string
 
+
+          
+    # ===============
+    # testing enum compositions
+    # ===============
+
+    LocalErrorCodes:
+      type: string
+      enum:
+      - containerId_missing
+      - error_code_1
+      - error_code_2
+      
+    # what about oneOf, allOf ? what to do in that case? maybe do the same...
+    ExtendedErrorCodesAnyOf:
+      anyOf:
+      - $ref: "#/components/schemas/LocalErrorCodes"
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+      nullable: true 
+
+    ExtendedErrorCodesOneOf:
+      oneOf:
+      - $ref: "#/components/schemas/LocalErrorCodes"
+      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+
+# for now we do not support this style so remove these
+# otherwise model generation would kick a schema exception
+#
+#    ExtendedErrorCodesInlineAnyOf:
+#      type: string
+#      anyOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+#
+#    ExtendedErrorCodesInlineOneOf:
+#      type: string
+#      oneOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+#
+#    ExtendedErrorCodesInlineAllOf:
+#      type: string
+#      allOf:
+#      - enum:
+#        - own_error_code_1
+#        - own_error_code_2
+#      - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes" 
+
+      
+    ErrorResponseClass:
+      type: object
+      properties:
+        errorCodeInplaceOneOf:
+          oneOf:
+          - $ref: "#/components/schemas/LocalErrorCodes"
+          - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeInplaceAnyOf:
+          anyOf:
+          - $ref: "#/components/schemas/LocalErrorCodes"
+          - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeArrayInplaceOneOf:
+          type: array
+          items:
+            oneOf:
+            - $ref: "#/components/schemas/LocalErrorCodes"
+            - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        errorCodeArrayInplaceAnyOf:
+          type: array
+          items:
+            anyOf:
+            - $ref: "#/components/schemas/LocalErrorCodes"
+            - $ref: "imported-types.yaml#/components/schemas/CommonErrorCodes"
+          nullable: true
+        extendedErrorCodesAnyOfField:
+          $ref: "#/components/schemas/ExtendedErrorCodesAnyOf"
+        extendedErrorCodesOneOfField:
+          $ref: "#/components/schemas/ExtendedErrorCodesOneOf"
+        extendedErrorCodesOneOfArrayField:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtendedErrorCodesOneOf"
+          nullable: true
+# these models were commented out - ^^^ see above!
+#        extendedErrorCodesInlineAnyOfField:
+#          $ref: "#/components/schemas/ExtendedErrorCodesInlineAnyOf"
+#        extendedErrorCodesInlineAnyOfArrayField:
+#          type: array
+#          items:
+#            $ref: "#/components/schemas/ExtendedErrorCodesInlineAnyOf"
+#          nullable: true
+  
+        # lets also quick test HashMap usage
+        extendedErrorCodesAnyOfMapField:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: "#/components/schemas/ExtendedErrorCodesAnyOf"
 
 
           
