@@ -12,6 +12,13 @@ This means that:
     * a config option of the generator itself is removed or renamed
 
 
+# release 2.1.0
+
+## New features
+ * From now when we create an Enum out of other Enums using 'allOf' the tool can handle this and generate a union Enum of all component Enums just like 'oneOf'/'anyOf' was used.
+   The importance of this for us is that actually if we also generate Go models from the contract then defining composite Enums using 'allOf' results in much much simple and cleaner
+   Go code. So we did it.  
+   This also relates to https://github.com/swagger-api/swagger-codegen/issues/11821 original reported issue which is still open at the time we did this.
 
 # release 2.0.0
 

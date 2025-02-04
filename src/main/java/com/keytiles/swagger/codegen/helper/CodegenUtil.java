@@ -525,6 +525,12 @@ public class CodegenUtil {
 			return false;
 		}
 
+		// "allOf" constructed enums has enum parent
+		if (theModel.parentModel != null && theModel.parentModel.getIsEnum()) {
+			return true;
+		}
+
+		// "anyOf" / "oneOf" constructed enums has Subtypes
 		if (theModel.getSubTypes() == null) {
 			return false;
 		}
@@ -611,6 +617,71 @@ public class CodegenUtil {
 	}
 
 	/**
+	 * When a composition Enum (using 'anyOf' or 'allOf') is detected in the contract if this is defined
+	 * with 'anyOf'/'oneOf' then the model knows the Subtypes (enums stuff consists of) easily provided
+	 * by original codegen. However When composition done with 'allOf' since in general this means
+	 * inheritance in Java which does not work for Enums the situation is more tricky... In original
+	 * codegen https://github.com/swagger-api/swagger-codegen/issues/11821 complained about this and
+	 * still open as we speak (2025-02-04). This method here can now also handle this and provide back
+	 * all Enums in the list which is used to compose the 'allOf' Enum.
+	 *
+	 * @param theComposedEnumModel
+	 * @param allProcessedModels
+	 * @return all of the sub-Enums used to compose the one in question
+	 */
+	public static List<CodegenModel> getComposedEnumModelSubtypes(CodegenModel theComposedEnumModel,
+			Map<String, Object> allProcessedModels) {
+		if (theComposedEnumModel.getSubTypes() != null) {
+			return theComposedEnumModel.getSubTypes();
+		}
+		List<CodegenModel> subtypes = new ArrayList<>();
+		// "allOf" constructed enums has enum parent
+		if (theComposedEnumModel.parentModel != null && theComposedEnumModel.parentModel.getIsEnum()) {
+			// no better way to find the pieces but only through the modelJson ...
+			HashMap<String, Object> modelJson = getParsedModelJson(theComposedEnumModel);
+			Object allOfObj = modelJson.get("allOf");
+			if (allOfObj != null && allOfObj instanceof Iterable) {
+				for (Object allOfItem : (Iterable) allOfObj) {
+					String typeName = null;
+					if (allOfItem instanceof Map) {
+						typeName = (String) ((Map) allOfItem).get("$ref");
+					} else if (allOfItem instanceof String) {
+
+					}
+					if (typeName != null) {
+						String origTypeName = typeName;
+						String toFind = "#/components/schemas/";
+						int idx = typeName.indexOf(toFind);
+						if (idx >= 0) {
+							typeName = typeName.substring(idx + toFind.length());
+						}
+						for (Map.Entry<String, Object> entry : allProcessedModels.entrySet()) {
+							if (entry.getKey().equals(typeName)) {
+								CodegenModel allOfItemModel = CodegenUtil
+										.extractModelClassFromPostProcessAllModelsInput(entry);
+								if (allOfItemModel != null) {
+									if (!allOfItemModel.getIsEnum()) {
+										// Oops! We are not prepared for this...
+										throw new SchemaValidationException(
+												"Oops! We discovered a model in the schema '"
+														+ theComposedEnumModel.name
+														+ "' which seems to contain 'allOf' composition of 'enum's which we can handle but all pieces must be an Enum in this case! And it looks the item '"
+														+ origTypeName + "' is not an Enum...");
+									}
+									subtypes.add(allOfItemModel);
+									// exit the for cycle
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return subtypes;
+	}
+
+	/**
 	 * If the given model is "anyOf", "allOf", "oneOf" composed model where all referenced parts are
 	 * Enums then it returns a new {@link CodegenModel} with same name everything but it will be
 	 * converted to a merged Enum of all parts
@@ -620,7 +691,7 @@ public class CodegenUtil {
 	 * @return a merged Enum model or NULL if input model was not a composed Enum model
 	 */
 	public static CodegenModel getComposedEnumModelAsMergedEnumModel(CodegenModel theComposedEnumModelCandidate,
-			boolean addExplanationsToModel) throws IllegalStateException {
+			Map<String, Object> allProcessedModels, boolean addExplanationsToModel) throws IllegalStateException {
 
 		// we can not deal with inline enum compisitions
 		if (isComposedModelUsingInlineEnumDeclaration(theComposedEnumModelCandidate)) {
@@ -681,9 +752,14 @@ public class CodegenUtil {
 		joinedEnumModel.allowableValues.put(ALLOWEDVALUES_KEY_VALUES, values);
 		joinedEnumModel.allowableValues.put(ALLOWEDVALUES_KEY_ENUMVARS, enumVars);
 
-		List<CodegenModel> subtypes = theComposedEnumModelCandidate.getSubTypes();
-		if (indirectComposedEnumModel) {
-			subtypes = theComposedEnumModelCandidate.interfaceModels.get(0).subTypes;
+		// List<CodegenModel> subtypes = theComposedEnumModelCandidate.getSubTypes();
+		List<CodegenModel> subtypes = indirectComposedEnumModel
+				? theComposedEnumModelCandidate.interfaceModels.get(0).subTypes
+				: getComposedEnumModelSubtypes(theComposedEnumModelCandidate, allProcessedModels);
+
+		// we do not need the subtypes in the imports - as we will join them here in place
+		for (CodegenModel subtype : subtypes) {
+			joinedEnumModel.imports.remove(subtype.name);
 		}
 
 		// let's iterate over the subtypes (which are enums) and merge them!

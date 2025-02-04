@@ -1,0 +1,35 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Test object definitions
+
+paths: {}
+
+components:
+
+  schemas:
+  
+    EnumA:
+      type: string
+      enum:
+      - EnumA_value1
+      - EnumA_value2
+
+    EnumB:
+      type: string
+      enum:
+      - EnumB_value1
+      - EnumB_value2
+
+    AnyOfEnum:
+      anyOf:
+      - $ref: "#/components/schemas/EnumA"
+      - $ref: "#/components/schemas/EnumB"
+      - $ref: "remote_enums.yaml#/components/schemas/EnumC"
+            
+    AllOfEnum:
+      allOf:
+      - $ref: "#/components/schemas/EnumA"
+      - $ref: "#/components/schemas/EnumB"
+      - $ref: "remote_enums.yaml#/components/schemas/EnumC"      

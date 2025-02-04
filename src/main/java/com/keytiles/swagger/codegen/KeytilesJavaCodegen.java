@@ -1014,43 +1014,48 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 	 */
 	protected void canModelBeGenerated(CodegenModel theModel) {
 
+		/*
+		 * since v2.1.0 it is now solved and possible - so we do not need to drop it!
+		 *
 		if (theModel.parentModel != null && theModel.parentModel.getIsEnum()) {
 			// it is not possible to extend an enum
 
 			throw new SchemaValidationException("We can not generate this schema :-( We ran into a class '"
 					+ theModel.name + "' which is extending an enum '" + theModel.parent
-					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nProbably this is caused by an 'allOf' composition referring in an Enum. You need to remove it and do your schema differently!");
+					+ "' and this is buggy in Java codegen. See: https://github.com/swagger-api/swagger-codegen/issues/11821\nProbably this is caused by an 'allOf' composition referring in an Enum. You need to remove it and do your schema	 differently!");
 		}
+		 */
 
 	}
 
 	/**
-	 * This is recognizing anyOf, oneOf, allOf (well this last one not for now - see
-	 * .canModelBeGenerated()) compositions of Enums and merging/replacing them with one Enum
+	 * This is recognizing anyOf, oneOf, allOf compositions of Enums and merging/replacing them with one
+	 * Enum
 	 *
-	 * @param objs
+	 * @param allProcessedModels
 	 *            the input of the {@link AbstractJavaCodegen#postProcessAllModels(Map)} method
 	 * @return modified map - it is possible some models (fabricated) are removed from the generation
 	 */
 	@SuppressWarnings("unchecked")
-	protected Map<String, Object> support_enumCompositions(Map<String, Object> objs) {
+	protected Map<String, Object> support_enumCompositions(Map<String, Object> allProcessedModels) {
 
 		// let's iterate over all entries and check / hunt for enum composition models!
 
 		// we will collect up all stuff we replaced during this turn
 		Map<String, CodegenModel> replacedEnums = new HashMap<>();
 
-		objs.entrySet().forEach(modelEntry -> {
+		allProcessedModels.entrySet().forEach(modelEntry -> {
 			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-			if ("ExtendedErrorCodesAnyOf".equals(theModel.name)) {
-				LOGGER.info("buu");
-			}
+			// if ("ExtendedErrorCodesAnyOf".equals(theModel.name)) {
+			// LOGGER.info("buu");
+			// }
 
 			CodegenModel joinedEnumModel = null;
 			try {
 				// this can return null - if not appropriate for merging
-				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(theModel, addExplanationsToModel);
+				joinedEnumModel = CodegenUtil.getComposedEnumModelAsMergedEnumModel(theModel, allProcessedModels,
+						addExplanationsToModel);
 			} catch (Exception e) {
 				throw new IllegalStateException(
 						"Oops! Failed to merge Enum composition in model '" + theModel + "': " + e.getMessage(), e);
@@ -1058,7 +1063,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 
 			// let's replace the type
 			if (joinedEnumModel != null) {
-				CodegenUtil.replaceModelDefinitionInPostProcessAllModelsInput(objs, modelEntry.getKey(),
+				CodegenUtil.replaceModelDefinitionInPostProcessAllModelsInput(allProcessedModels, modelEntry.getKey(),
 						joinedEnumModel);
 				replacedEnums.put(modelEntry.getKey(), joinedEnumModel);
 			}
@@ -1086,7 +1091,7 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 		// and finally lets merge enums!
 		// if there are schema-defined enums which are equal to fabricated enums let's remove the fabricated
 		// enums and repoint usage points to the schema-defined ones
-		Map<String, Object> allProcessedModelsResult = new HashMap<>(objs);
+		Map<String, Object> allProcessedModelsResult = new HashMap<>(allProcessedModels);
 		replacedEnums.entrySet().forEach(modelEntry -> {
 			if (modelEntry.getValue().getBooleanValue(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM)) {
 				Set<String> equalsToEnums = (Set<String>) modelEntry.getValue().getVendorExtensions()
@@ -1094,8 +1099,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 				if (equalsToEnums != null) {
 					// let's iterate over everyone the enum model is equals to
 					for (String equalsToEnumName : equalsToEnums) {
-						CodegenModel eualsToEnumModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(objs,
-								equalsToEnumName);
+						CodegenModel eualsToEnumModel = CodegenUtil
+								.extractModelClassFromPostProcessAllModelsInput(allProcessedModels, equalsToEnumName);
 						// if this one is not directly declared then let's replace it with the directly declared (and
 						// equals) one!
 						if (!eualsToEnumModel.getBooleanValue(IKeytilesCodegen.X_MODEL_SCHEMA_DEFINED_MERGED_ENUM)) {
@@ -1103,8 +1108,8 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 									"=== replace - fabricated (by Codegen) enum '{}' will be removed and replaced with '{}' as they are equal",
 									eualsToEnumModel.name, modelEntry.getValue().name);
 
-							CodegenUtil.replaceModelReferenceInPostProcessAllModelsInput(objs, equalsToEnumName,
-									modelEntry.getKey(), "enum '" + modelEntry.getKey()
+							CodegenUtil.replaceModelReferenceInPostProcessAllModelsInput(allProcessedModels,
+									equalsToEnumName, modelEntry.getKey(), "enum '" + modelEntry.getKey()
 											+ "' is defined in the schema directly and it equals to the one you defined inline - so field is reusing that one instead of a fabricated type");
 							allProcessedModelsResult.remove(equalsToEnumName);
 						}
@@ -1143,10 +1148,10 @@ public class KeytilesJavaCodegen extends JavaClientCodegen implements IKeytilesC
 			Map<String, Object> modelMap = (Map<String, Object>) modelEntry.getValue();
 			CodegenModel theModel = CodegenUtil.extractModelClassFromPostProcessAllModelsInput(modelEntry);
 
-			if ("FruitEnum".equals(theModel.name) || "StatApiEndpointProblemClass".equals(theModel.name)
-					|| "DogResponseClass".equals(theModel.name)) {
-				LOGGER.info("buu");
-			}
+			// if ("FruitEnum".equals(theModel.name) || "StatApiEndpointProblemClass".equals(theModel.name)
+			// || "DogResponseClass".equals(theModel.name)) {
+			// LOGGER.info("buu");
+			// }
 
 			canModelBeGenerated(theModel);
 
