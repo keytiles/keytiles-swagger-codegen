@@ -20,6 +20,11 @@ import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClass.InlineEnumFieldEnum;
 import com.keytiles.api.model.test.simpleconsistent.NonNullableFieldsClassInlineLangObjectField;
 import com.keytiles.api.model.test.simpleconsistent.SimpleFieldsClass;
+import com.keytiles.api.model.test.simpleconsistent.enums.AllOfEnum;
+import com.keytiles.api.model.test.simpleconsistent.enums.AnyOfEnum;
+import com.keytiles.api.model.test.simpleconsistent.enums.EnumA;
+import com.keytiles.api.model.test.simpleconsistent.enums.EnumB;
+import com.keytiles.api.model.test.simpleconsistent.enums.EnumC;
 import com.keytiles.api.model.test.simpleconsistent.imported.ContainerClass;
 import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.imported.PrimeEnum;
@@ -210,6 +215,23 @@ public class CheckGeneratedSourcesTest {
 
 		SubClass subClass = new SubClass(requestReceivedAt, subPrivateMoreFarOverridenField, 0,
 				subPrivateDirectOverridenField, subPublicDirectOverridenField);
+
+	}
+
+	@Test
+	public void checkAnyOfAllOfMergedEnums() {
+
+		// composed Enum with "allOf" should have everything
+		Assert.assertEquals(6, AllOfEnum.values().length);
+		Assert.assertEquals(EnumA.ENUMA_VALUE1.getValue(), AllOfEnum.ENUMA_VALUE1.getValue());
+		Assert.assertEquals(EnumB.ENUMB_VALUE1.getValue(), AllOfEnum.ENUMB_VALUE1.getValue());
+		Assert.assertEquals(EnumC.ENUMC_VALUE1.getValue(), AllOfEnum.ENUMC_VALUE1.getValue());
+
+		// composed Enum with "allOf" should have everything
+		Assert.assertEquals(6, AnyOfEnum.values().length);
+		Assert.assertEquals(EnumA.ENUMA_VALUE1.getValue(), AnyOfEnum.ENUMA_VALUE1.getValue());
+		Assert.assertEquals(EnumB.ENUMB_VALUE1.getValue(), AnyOfEnum.ENUMB_VALUE1.getValue());
+		Assert.assertEquals(EnumC.ENUMC_VALUE1.getValue(), AnyOfEnum.ENUMC_VALUE1.getValue());
 
 	}
 
