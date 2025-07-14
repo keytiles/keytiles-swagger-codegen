@@ -1,0 +1,75 @@
+openapi: 3.0.1
+
+info:
+  version: '1.0'
+  title: Common object definitions - regarding scheduled actions.
+  description: "These object definitions are shared among multiple contracts. Suitable to describe anything which runs on a scheduled basis - in a very intuitive, human-friendly way. (Unlike chrontab format... :-P)"
+
+paths: {}
+
+components:
+
+  schemas:
+
+    Schedule:
+      description: 'Describes a Schedule of something. As of now you have basically 4 types: hourly, daily, weekly and Monthly schedules.'
+      type: object
+      nullable: true
+      required:
+        - type
+        - setup
+      properties:
+        type:
+          description: Describes which type of schedule is this?
+          type: string
+          # we voted against it - let's keep the Nil possibility...
+          # x-go-type-skip-optional-pointer: true
+          enum: ['hourly', 'daily', 'weekly', 'monthly']
+        setup:
+          oneOf:
+          - $ref: '#/components/schemas/HourlyScheduleSetup'
+          - $ref: '#/components/schemas/DailyScheduleSetup'
+
+    HourlyScheduleSetup:
+      description: Encodes scheduling tailored for hourly execution.
+      type: object
+      required:
+        - firstTime
+      properties:
+        firstTime:
+          type: string
+          # we voted against it - let's keep the Nil possibility...
+          # x-go-type-skip-optional-pointer: true
+          nullable: false
+          description: >
+                      Mandatory element. This is an "HH:MM" formatted time descriptor. Means: within a day what time should we trigger the execution first? From this time the action is shcheduled every hour.  
+                        
+                      For example if you set it to "09:15" then first execution happens at 09:15, the next one at 10:15 then 11:15 and so on.
+          example: '09:15'
+        untilTime:
+          type: string
+          # we voted against it - let's keep the Nil possibility...
+          # x-go-type-skip-optional-pointer: true
+          description: >
+                      Optional setting. This is an "HH:MM" formatted time descriptor. Means: within a day triggering will happen only if the current time is <= than this time.  
+                        
+                      For example, if `firstTime="09:15"` then actually the last execution of the action will happen at "17:15".  
+                        
+                      In case not given then scheduling will happen within the day every hour starting from `firstTime`.
+          example: '18:00'
+
+    DailyScheduleSetup:
+      description: Encodes scheduling tailored for daily execution.
+      type: object
+      required:
+        - triggerTime
+      properties:
+        triggerTime:
+          type: string
+          # we voted against it - let's keep the Nil possibility...
+          # x-go-type-skip-optional-pointer: true
+          nullable: false
+          description: >
+                      Mandatory element. This is an "HH:MM" formatted time descriptor. Means: within a day what time should we trigger the execution?
+          example: '09:00'
+
