@@ -136,11 +136,25 @@ public class ConfigOptionHelper {
 					IKeytilesCodegen.OPT_EXCLUDE_IMPORT_MAPPINGS_FROM_GENERATION);
 			Map<String, Schema> schemas = openAPI.getComponents().getSchemas();
 			Set<String> excludeModelsFromGeneration = new HashSet<>();
+			/*
+			 * OK this is not good this way... because if we have an inline 'oneOf' somewhere that is not
+			 * available yet among the Schemas at this point yet - therefore will not be excluded from the
+			 * generation. For example see: /keytiles-swagger-codegen/src/test/openapi/oneOfInterfaceTest
+			 * folder, Schedule.setup field
+			 *
+			 * so to fix it let's just simply exclude everything and not just the schemas.xxx
+			 *
 			schemas.entrySet().forEach(schemaEntry -> {
 				if (codegen.importMapping().containsKey(schemaEntry.getKey())) {
 					excludeModelsFromGeneration.add(schemaEntry.getKey());
-					LOGGER.info("model {} is excluded from generation - found in importMappings", schemaEntry.getKey());
+					LOGGER.info("model {} is excluded from				 generation - found in importMappings",
+							schemaEntry.getKey());
 				}
+			});
+			 */
+			codegen.importMapping().entrySet().forEach(schemaEntry -> {
+				excludeModelsFromGeneration.add(schemaEntry.getKey());
+				LOGGER.info("model {} is excluded from generation - found in importMappings", schemaEntry.getKey());
 			});
 			// let the codegen know about these exclusions!
 			codegen.setExcludeModelsFromGeneration(excludeModelsFromGeneration);

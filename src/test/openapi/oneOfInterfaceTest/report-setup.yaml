@@ -1,0 +1,32 @@
+openapi: 3.0.0
+
+info:
+  version: '1.0'
+  title: Keytiles Reporting API
+  description: >
+              API endpoints to manage / query / use Keytiles Reporting.
+
+
+paths: {}
+
+components:
+
+  schemas:
+
+    ReportSetup:
+      type: object
+      required:
+        - id
+        - resourceVersion
+      properties:
+        id:
+          type: string
+          description: The unique ID of this report setup - UUID style
+        schedule:
+          description: Controlls when will the report run automatically. If you do not schedule the report then the report is only generated when you manually trigger it.
+          $ref: 'common-schedule.yaml#/components/schemas/Schedule'
+          nullable: true
+        resourceVersion:
+          type: integer
+          description: This is the resource version (which is automatically incremented by every change). When you do an update (PUT) you need to send it back! The server will check if it is matching with the resource version he has. If not then that means someone else already did an update in the meantime therefore your request can not be accepted - otherwise you may overwrite the changes someone did.
+          nullable: false

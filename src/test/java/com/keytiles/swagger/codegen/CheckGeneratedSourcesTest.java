@@ -28,6 +28,10 @@ import com.keytiles.api.model.test.simpleconsistent.enums.EnumC;
 import com.keytiles.api.model.test.simpleconsistent.imported.ContainerClass;
 import com.keytiles.api.model.test.simpleconsistent.imported.NonNullablePrimeEnum;
 import com.keytiles.api.model.test.simpleconsistent.imported.PrimeEnum;
+import com.keytiles.api.model.test.simpleconsistent.oneofinterfacetest.common.DailyScheduleSetup;
+import com.keytiles.api.model.test.simpleconsistent.oneofinterfacetest.common.OneOfScheduleSetup;
+import com.keytiles.api.model.test.simpleconsistent.oneofinterfacetest.common.Schedule;
+import com.keytiles.api.model.test.simpleconsistent.oneofinterfacetest.common.Schedule.TypeEnum;
 import com.keytiles.api.model.test.simpleconsistent.prop_overrides.BaseClass;
 import com.keytiles.api.model.test.simpleconsistent.prop_overrides.ExtendedFieldClass;
 import com.keytiles.api.model.test.simpleconsistent.prop_overrides.FieldClass;
@@ -65,6 +69,13 @@ public class CheckGeneratedSourcesTest {
 
 		Assert.assertEquals(new ArrayList<>(Arrays.asList("a", "b")),
 				nonNullableFieldsClass.getArrayFieldWithDefault());
+
+		// this is just to quickly test some very basic runtime behavior is correct regarding the
+		// "oneofinterface" tests
+
+		OneOfScheduleSetup scheduleSetup = new DailyScheduleSetup("triggerTime");
+		Schedule schedule = new Schedule(TypeEnum.DAILY, scheduleSetup);
+		Assert.assertEquals(scheduleSetup, schedule.getSetup());
 	}
 
 	/**
